@@ -1,4 +1,4 @@
-# Kvízovka 🟥🔷🟡🟩
+☻# Kvízovka 🟥🔷🟡🟩
 
 Školská kvízová hra v štýle Kahoot. Učiteľ premieta otázky na projektor, tímy odpovedajú na mobiloch/tabletoch, body sa počítajú za správnosť aj rýchlosť a na konci sa vyhlasujú stupne víťazov (top 3).
 
@@ -8,10 +8,10 @@
 
 ## Ako to funguje
 
-| Časť | Technológia |
-|---|---|
-| Frontend | React + Vite + Tailwind CSS (nasadený na **Vercel**) |
-| Databáza, realtime, obrázky, prihlásenie | **Supabase** (free tier stačí) |
+| Časť                                     | Technológia                                          |
+| ---------------------------------------- | ---------------------------------------------------- |
+| Frontend                                 | React + Vite + Tailwind CSS (nasadený na **Vercel**) |
+| Databáza, realtime, obrázky, prihlásenie | **Supabase** (free tier stačí)                       |
 
 Vercel nevie držať trvalé WebSocket spojenia, preto realtime synchronizáciu hry rieši Supabase. Všetka herná logika (časovanie, bodovanie, kontrola odpovedí) beží v databáze – správna odpoveď sa do mobilov nedostane skôr, než ju projektor odhalí, a podvádzať zmenou času na mobile sa nedá.
 
@@ -25,16 +25,16 @@ Projektor (učiteľ, /host/…) ──RPC──▶ Supabase Postgres ◀──RP
 
 ## 1. Nastavenie Supabase (raz, ~5 minút)
 
-1. Zaregistruj sa na [supabase.com](https://supabase.com) a vytvor nový projekt (región napr. *Central EU (Frankfurt)*).
+1. Zaregistruj sa na [supabase.com](https://supabase.com) a vytvor nový projekt (región napr. _Central EU (Frankfurt)_).
 2. **SQL Editor → New query** → vlož celý obsah súboru [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) → **Run**.
-3. **Authentication → Users → Add user → Create new user** – zadaj e-mail a heslo učiteľa, zaškrtni *Auto Confirm User*.
+3. **Authentication → Users → Add user → Create new user** – zadaj e-mail a heslo učiteľa, zaškrtni _Auto Confirm User_.
 4. V SQL Editore pridaj tento e-mail medzi administrátorov:
    ```sql
    insert into public.admin_emails (email) values ('ucitel@skola.sk');
    ```
    (e-mail malými písmenami; takto môžeš pridať aj viac učiteľov)
-5. *Odporúčané:* **Authentication → Sign In / Providers → Email** → vypni **Allow new users to sign up** (účty vytváraš ručne v kroku 3).
-6. *Voliteľné:* spusti [`supabase/seed.sql`](supabase/seed.sql) – pridá ukážkový kvíz s 8 otázkami.
+5. _Odporúčané:_ **Authentication → Sign In / Providers → Email** → vypni **Allow new users to sign up** (účty vytváraš ručne v kroku 3).
+6. _Voliteľné:_ spusti [`supabase/seed.sql`](supabase/seed.sql) – pridá ukážkový kvíz s 8 otázkami.
 7. **Project Settings → API** (alebo tlačidlo **Connect**) – skopíruj **Project URL** a **anon / publishable key**.
 
 > ⚠️ Bezplatný Supabase projekt sa po 7 dňoch nečinnosti uspí. Pred kvízom sa prihlás do Supabase a ak je projekt pozastavený, klikni na **Restore** (trvá to pár minút).
@@ -42,10 +42,12 @@ Projektor (učiteľ, /host/…) ──RPC──▶ Supabase Postgres ◀──RP
 ## 2. Nasadenie na Vercel
 
 1. Nahraj tento priečinok do GitHub repozitára.
-2. Na [vercel.com](https://vercel.com) → **Add New → Project** → importuj repozitár (framework *Vite* sa rozpozná sám).
+2. Na [vercel.com](https://vercel.com) → **Add New → Project** → importuj repozitár (framework _Vite_ sa rozpozná sám).
 3. V **Environment Variables** pridaj:
-   - `VITE_SUPABASE_URL` = Project URL
-   - `VITE_SUPABASE_ANON_KEY` = anon / publishable key
+   - `SUPABASE_URL` = Project URL (bez `/rest/v1/` na konci)
+   - `SUPABASE_ANON_KEY` = anon / publishable key
+
+   Ak prepojíš Supabase cez Vercel integráciu, tieto dve premenné sa nastavia samé. Do aplikácie sa dostanú len tieto dve – ostatné (napr. `SUPABASE_SERVICE_ROLE_KEY`) zostanú tajné.
 4. **Deploy**. Hotovo – aplikácia beží na `https://<nazov>.vercel.app`.
 
 Pri zmene premenných prostredia treba spraviť **Redeploy** (hodnoty sa vkladajú do aplikácie pri zostavení).
@@ -62,12 +64,12 @@ npm run dev               # http://localhost:5173
 
 Ďalšie príkazy:
 
-| Príkaz | Čo robí |
-|---|---|
-| `npm run build` | kontrola typov + produkčné zostavenie do `dist/` |
-| `npm run typecheck` | len kontrola typov |
-| `npm run test:sql` | testy hernej logiky v SQL (bodovanie, časovanie, práva) – bežia lokálne v PGlite, Supabase netreba |
-| `npm run test:e2e` | celá hra proti tvojmu Supabase projektu (host + 3 tímy cez realtime); potrebuje v `.env` aj `E2E_ADMIN_EMAIL` a `E2E_ADMIN_PASSWORD`, po sebe upratuje |
+| Príkaz              | Čo robí                                                                                                                                                |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `npm run build`     | kontrola typov + produkčné zostavenie do `dist/`                                                                                                       |
+| `npm run typecheck` | len kontrola typov                                                                                                                                     |
+| `npm run test:sql`  | testy hernej logiky v SQL (bodovanie, časovanie, práva) – bežia lokálne v PGlite, Supabase netreba                                                     |
+| `npm run test:e2e`  | celá hra proti tvojmu Supabase projektu (host + 3 tímy cez realtime); potrebuje v `.env` aj `E2E_ADMIN_EMAIL` a `E2E_ADMIN_PASSWORD`, po sebe upratuje |
 
 ---
 
@@ -92,10 +94,10 @@ Ovládanie projektora: **Medzerník / Enter / →** = ďalší krok, vpravo hore
 
 V administrácii klikni **Stiahnuť šablónu**, vyplň ju a nahraj cez **Importovať z Excelu** (nový kvíz) alebo v editore cez **Importovať otázky** (pridať k existujúcim).
 
-| Kategória | Otázka | Odpoveď A | Odpoveď B | Odpoveď C | Odpoveď D | Správna | Čas (s) | Body | Obrázok (URL) |
-|---|---|---|---|---|---|---|---|---|---|
-| Geografia | Hlavné mesto Slovenska? | Košice | Bratislava | Žilina | Nitra | B | 20 | 1 | |
-| Šport | Koľko hráčov má futbalový tím? | 9 | 11 | | | B | 15 | 2 | |
+| Kategória | Otázka                         | Odpoveď A | Odpoveď B  | Odpoveď C | Odpoveď D | Správna | Čas (s) | Body | Obrázok (URL) |
+| --------- | ------------------------------ | --------- | ---------- | --------- | --------- | ------- | ------- | ---- | ------------- |
+| Geografia | Hlavné mesto Slovenska?        | Košice    | Bratislava | Žilina    | Nitra     | B       | 20      | 1    |               |
+| Šport     | Koľko hráčov má futbalový tím? | 9         | 11         |           |           | B       | 15      | 2    |               |
 
 - **Správna**: A / B / C / D (alebo 1–4) · **Čas**: 5–240 s (predvolene 20) · **Body**: 1 = štandardné, 2 = dvojnásobné, 0 = bez bodov
 - Odpovede C a D sú nepovinné, obrázok je nepovinný (verejná URL – alebo ho nahraj neskôr v editore).

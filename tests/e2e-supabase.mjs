@@ -2,7 +2,7 @@
 // Vytvorí dočasný kvíz a hru a na konci ich zmaže.
 //
 // Spustenie (premenné môžu byť aj v .env):
-//   VITE_SUPABASE_URL=... VITE_SUPABASE_ANON_KEY=... E2E_ADMIN_EMAIL=... E2E_ADMIN_PASSWORD=... npm run test:e2e
+//   SUPABASE_URL=... SUPABASE_ANON_KEY=... E2E_ADMIN_EMAIL=... E2E_ADMIN_PASSWORD=... npm run test:e2e
 import { createClient } from '@supabase/supabase-js'
 import { existsSync, readFileSync } from 'node:fs'
 import assert from 'node:assert/strict'
@@ -14,9 +14,9 @@ if (existsSync(envFile)) {
     if (m && !process.env[m[1]]) process.env[m[1]] = m[2].replace(/^["']|["']$/g, '')
   }
 }
-const { VITE_SUPABASE_URL: url, VITE_SUPABASE_ANON_KEY: key, E2E_ADMIN_EMAIL: email, E2E_ADMIN_PASSWORD: password } = process.env
+const { SUPABASE_URL: url, SUPABASE_ANON_KEY: key, E2E_ADMIN_EMAIL: email, E2E_ADMIN_PASSWORD: password } = process.env
 if (!url || !key || !email || !password) {
-  console.error('Chýba VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, E2E_ADMIN_EMAIL alebo E2E_ADMIN_PASSWORD.')
+  console.error('Chýba SUPABASE_URL, SUPABASE_ANON_KEY, E2E_ADMIN_EMAIL alebo E2E_ADMIN_PASSWORD.')
   process.exit(1)
 }
 

@@ -40,8 +40,8 @@ function MissingConfig() {
         <Logo light={false} />
         <h1 className="text-xl font-extrabold">Chýba pripojenie k databáze</h1>
         <p className="text-gray-600">
-          Nastav premenné prostredia <code className="rounded bg-gray-100 px-1">VITE_SUPABASE_URL</code> a{' '}
-          <code className="rounded bg-gray-100 px-1">VITE_SUPABASE_ANON_KEY</code> (súbor <code>.env</code> lokálne,
+          Nastav premenné prostredia <code className="rounded bg-gray-100 px-1">SUPABASE_URL</code> a{' '}
+          <code className="rounded bg-gray-100 px-1">SUPABASE_ANON_KEY</code> (súbor <code>.env</code> lokálne,
           alebo Environment Variables vo Verceli) a aplikáciu znova zostav. Postup je v README.md.
         </p>
       </div>
