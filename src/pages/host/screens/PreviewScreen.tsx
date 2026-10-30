@@ -7,7 +7,7 @@ import type { Game } from '../../../lib/types'
 import { PointsBadge } from '../components/PointsBadge'
 import { playSound, questionTextClass } from '../utils'
 
-/** Úvod otázky: číslo, kategória, text – po PREVIEW_SECONDS sa otvorí odpovedanie. */
+/** Úvod otázky: číslo, kategória, text, obrázok – po PREVIEW_SECONDS sa otvorí odpovedanie. */
 export function PreviewScreen({ game, endsAt }: { game: Game; endsAt: number }) {
   const q = game.question
   // zostávajúci čas sa určí raz pri zobrazení (aj po obnovení stránky)
@@ -16,6 +16,7 @@ export function PreviewScreen({ game, endsAt }: { game: Game; endsAt: number }) 
     const remaining = Math.max(0, Math.min(total, endsAt - Date.now()))
     return { from: remaining / total, seconds: remaining / 1000 }
   })
+  const [imageFailed, setImageFailed] = useState(false)
 
   useEffect(() => {
     const t = setTimeout(() => playSound(sound.whoosh), 0)
@@ -24,8 +25,10 @@ export function PreviewScreen({ game, endsAt }: { game: Game; endsAt: number }) 
 
   if (!q) return null
 
+  const showImage = Boolean(q.image_url) && !imageFailed
+
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-8 px-12 pb-12">
+    <div className={`flex h-full flex-col items-center justify-center px-12 pb-12 ${showImage ? 'gap-6' : 'gap-8'}`}>
       <motion.p
         className="rounded-full bg-black/25 px-8 py-2 text-[2.5rem] font-black tabular-nums text-shadow"
         initial={{ y: -30, opacity: 0 }}
@@ -59,7 +62,7 @@ export function PreviewScreen({ game, endsAt }: { game: Game; endsAt: number }) 
       )}
 
       <motion.div
-        className="game-card flex w-full max-w-[104rem] items-center justify-center px-14 py-12 text-center"
+        className={`game-card flex w-full max-w-[104rem] shrink-0 items-center justify-center px-14 text-center ${showImage ? 'py-8' : 'py-12'}`}
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 220, damping: 20, delay: 0.1 }}
@@ -67,7 +70,21 @@ export function PreviewScreen({ game, endsAt }: { game: Game; endsAt: number }) 
         <h2 className={`font-black break-words ${questionTextClass(q.text, true)}`}>{q.text}</h2>
       </motion.div>
 
-      <div className="h-4 w-full max-w-[80rem] overflow-hidden rounded-full bg-black/25" aria-hidden>
+      {showImage && (
+        <div className="relative min-h-[12rem] w-full flex-1">
+          <motion.img
+            src={q.image_url ?? undefined}
+            alt=""
+            onError={() => setImageFailed(true)}
+            className="absolute inset-0 size-full object-contain drop-shadow-[0_0.5rem_0.4rem_rgb(0_0_0/0.3)]"
+            initial={{ scale: 0.85, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ type: 'spring', stiffness: 220, damping: 22, delay: 0.25 }}
+          />
+        </div>
+      )}
+
+      <div className="h-4 w-full max-w-[80rem] shrink-0 overflow-hidden rounded-full bg-black/25" aria-hidden>
         <motion.div
           className="h-full origin-left rounded-full bg-white"
           initial={{ scaleX: bar.from }}

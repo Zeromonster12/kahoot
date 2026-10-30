@@ -60,7 +60,8 @@ export function QuestionScreen({ game, teamCount, answeredCount, answers, rem, s
   const answered = revealed ? (q.answered ?? answeredCount) : answeredCount
   const correctCount = q.correct !== undefined ? (counts[q.correct] ?? 0) : 0
   const showImage = Boolean(q.image_url) && !imageFailed
-  const explanation = revealed ? (q.explanation ?? '').trim() : ''
+  // vysvetlenie má samostatnú obrazovku (ExplanationScreen), sem patrí len tlačidlo na ňu
+  const hasExplanation = Boolean(q.explanation?.trim())
 
   return (
     <div className="flex h-full flex-col gap-4 px-6 pb-6">
@@ -150,17 +151,30 @@ export function QuestionScreen({ game, teamCount, answeredCount, answers, rem, s
         <div className="flex w-[17rem] shrink-0 flex-col items-center justify-center gap-7">
           <Stat label="Odpovede" value={answered} total={teamCount} />
           {revealed ? (
-            <Button
-              variant="white"
-              size="xl"
-              loading={nextBusy}
-              onClick={onNext}
-              icon={isLast ? <Trophy className="size-7" aria-hidden /> : undefined}
-              title={isLast ? 'Výsledky (medzerník)' : 'Ďalej (medzerník)'}
-            >
-              {isLast ? 'Výsledky' : 'Ďalej'}
-              {!isLast && <ChevronRight className="size-7" aria-hidden />}
-            </Button>
+            hasExplanation ? (
+              <Button
+                variant="white"
+                size="xl"
+                loading={nextBusy}
+                onClick={onNext}
+                icon={<Lightbulb className="size-7 text-ans-yellow" strokeWidth={2.5} aria-hidden />}
+                title="Vysvetlenie (medzerník)"
+              >
+                Vysvetlenie
+              </Button>
+            ) : (
+              <Button
+                variant="white"
+                size="xl"
+                loading={nextBusy}
+                onClick={onNext}
+                icon={isLast ? <Trophy className="size-7" aria-hidden /> : undefined}
+                title={isLast ? 'Výsledky (medzerník)' : 'Ďalej (medzerník)'}
+              >
+                {isLast ? 'Výsledky' : 'Ďalej'}
+                {!isLast && <ChevronRight className="size-7" aria-hidden />}
+              </Button>
+            )
           ) : (
             <Button
               variant="white"
@@ -176,28 +190,8 @@ export function QuestionScreen({ game, teamCount, answeredCount, answers, rem, s
         </div>
       </div>
 
-      {explanation && <Explanation text={explanation} />}
-
       <AnswerTiles answers={q.answers} correct={revealed ? q.correct : undefined} />
     </div>
-  )
-}
-
-/** Vysvetlenie správnej odpovede – objaví sa chvíľu po odhalení. */
-function Explanation({ text }: { text: string }) {
-  const size = text.length <= 90 ? 'text-[2.1rem]' : text.length <= 180 ? 'text-[1.75rem]' : 'text-[1.5rem]'
-  return (
-    <motion.div
-      className="game-card flex shrink-0 items-center gap-5 px-7 py-4"
-      initial={{ y: 24, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ type: 'spring', stiffness: 260, damping: 24, delay: 0.7 }}
-    >
-      <span className="grid size-14 shrink-0 place-items-center rounded-full bg-ans-yellow text-white shadow-[0_0.25rem_0_rgb(0_0_0/0.2)]">
-        <Lightbulb className="size-8" strokeWidth={2.5} aria-hidden />
-      </span>
-      <p className={`min-w-0 flex-1 leading-snug font-bold wrap-break-word whitespace-pre-line ${size}`}>{text}</p>
-    </motion.div>
   )
 }
 

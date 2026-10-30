@@ -22,6 +22,7 @@ import { useHostActions } from './hooks/useHostActions'
 import { useHostKeys } from './hooks/useHostKeys'
 import { useProjectorScale } from './hooks/useProjectorScale'
 import { useTeams } from './hooks/useTeams'
+import { ExplanationScreen } from './screens/ExplanationScreen'
 import { LobbyScreen } from './screens/LobbyScreen'
 import { PodiumScreen } from './screens/PodiumScreen'
 import { PreviewScreen } from './screens/PreviewScreen'
@@ -133,17 +134,24 @@ function HostGame({ gameId }: { gameId: string }) {
     run(skipKey, () => hostReveal(gameId), { expect: key })
   }, [run, skipKey, key, gameId])
 
+  // vysvetlenie je samostatná obrazovka po odhalení – len na projektore, server o nej nevie
+  const hasExplanation = Boolean(game?.question?.explanation?.trim())
+  const [explainedKey, setExplainedKey] = useState<string | null>(null)
+  const explaining = status === 'reveal' && hasExplanation && explainedKey === key
+
   const nextKey = `${key}:next`
   const questionCount = game?.question_count ?? 0
   const next = useCallback(() => {
-    if (status === 'reveal') {
+    if (status === 'reveal' && hasExplanation && !explaining) {
+      setExplainedKey(key)
+    } else if (status === 'reveal') {
       const last = idx >= questionCount - 1
       run(nextKey, () => (last ? hostFinish(gameId) : hostScoreboard(gameId)), { expect: key })
     } else if (status === 'scoreboard') {
       const last = idx + 1 >= questionCount
       run(nextKey, () => (last ? hostFinish(gameId) : hostShowQuestion(gameId, idx + 1)), { expect: key })
     }
-  }, [status, idx, questionCount, run, nextKey, key, gameId])
+  }, [status, hasExplanation, explaining, idx, questionCount, run, nextKey, key, gameId])
 
   const endGame = useCallback(() => {
     setConfirmEnd(false)
@@ -210,6 +218,11 @@ function HostGame({ gameId }: { gameId: string }) {
       break
     case 'question':
     case 'reveal':
+      if (explaining) {
+        screenKey = `explain:${idx}`
+        screen = <ExplanationScreen game={game} busy={isBusy(nextKey)} onNext={next} />
+        break
+      }
       // otázka a jej vyhodnotenie zdieľajú obrazovku – dlaždice plynulo prejdú do odhalenia
       screenKey = `stage:${idx}`
       screen = (
