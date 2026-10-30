@@ -6,6 +6,7 @@ import {
   MAX_ANSWER,
   MAX_ANSWERS,
   MAX_CATEGORY,
+  MAX_EXPLANATION,
   MAX_QUESTION,
   MIN_ANSWERS,
   type QuestionData,
@@ -43,11 +44,12 @@ const HEADERS = [
   'Čas (s)',
   'Body',
   'Obrázok (URL)',
+  'Vysvetlenie',
 ]
 
-const COL_WIDTHS = [18, 60, 26, 26, 26, 26, 10, 9, 8, 40]
+const COL_WIDTHS = [18, 60, 26, 26, 26, 26, 10, 9, 8, 40, 60]
 
-type Field = 'category' | 'text' | 'a' | 'b' | 'c' | 'd' | 'correct' | 'time' | 'points' | 'image'
+type Field = 'category' | 'text' | 'a' | 'b' | 'c' | 'd' | 'correct' | 'time' | 'points' | 'image' | 'explanation'
 
 function answerAliases(letter: string, n: number): string[] {
   return [
@@ -102,6 +104,7 @@ const ALIASES: Record<Field, string[]> = {
   ],
   points: ['body', 'pocet bodov', 'bodovanie', 'points', 'score'],
   image: ['obrazok', 'obrazok url', 'obrazek', 'obrazek url', 'url obrazka', 'image', 'image url', 'foto', 'url'],
+  explanation: ['vysvetlenie', 'vysvetleni', 'vysvetlenie odpovede', 'zdovodnenie', 'poznamka', 'explanation', 'reason'],
 }
 
 function fieldFor(header: string): Field | null {
@@ -273,6 +276,12 @@ export function parseRows(rows: unknown[][], firstRowNumber = 1): ParseResult {
       continue
     }
 
+    const explanation = get(row, cols.explanation)
+    if (explanation.length > MAX_EXPLANATION) {
+      fail(`Vysvetlenie je dlhšie ako ${MAX_EXPLANATION} znakov (${explanation.length}).`)
+      continue
+    }
+
     // odpovede bez medzier (napr. prázdne C a vyplnené D → D sa posunie na miesto C)
     questions.push({
       category: get(row, cols.category).replace(/\s+/g, ' ').slice(0, MAX_CATEGORY),
@@ -282,6 +291,7 @@ export function parseRows(rows: unknown[][], firstRowNumber = 1): ParseResult {
       correct: filled.findIndex((s) => s.idx === correct),
       time_limit: time,
       points,
+      explanation,
     })
   }
   return { questions, errors }
@@ -411,6 +421,7 @@ function questionRow(q: QuestionData): (string | number)[] {
     q.time_limit,
     pointsCell(q.points),
     q.image_url ?? '',
+    q.explanation ?? '',
   ]
 }
 
@@ -438,6 +449,7 @@ const SAMPLE: QuestionData[] = [
     time_limit: 20,
     points: 1000,
     image_url: null,
+    explanation: 'Gerlachovský štít (2 655 m) je najvyšší vrch Slovenska aj celých Karpát.',
   },
   {
     category: 'Príroda',
@@ -447,6 +459,7 @@ const SAMPLE: QuestionData[] = [
     time_limit: 10,
     points: 1000,
     image_url: null,
+    explanation: 'Pavúky patria medzi pavúkovce, nie hmyz – hmyz má 6 nôh.',
   },
   {
     category: 'Šport',
@@ -456,6 +469,7 @@ const SAMPLE: QuestionData[] = [
     time_limit: 20,
     points: 2000,
     image_url: null,
+    explanation: '',
   },
   {
     category: 'Príroda',
@@ -465,6 +479,7 @@ const SAMPLE: QuestionData[] = [
     time_limit: 10,
     points: 0,
     image_url: null,
+    explanation: 'Slnko je najbližšia hviezda k Zemi.',
   },
 ]
 
@@ -478,6 +493,7 @@ const GUIDE: string[][] = [
   ['Čas (s)', 'Nepovinné. Čas na odpoveď v sekundách, 5 – 240. Ak je prázdne, použije sa 20 s.'],
   ['Body', 'Nepovinné. 1 = štandardné (do 1 000 bodov), 2 = dvojnásobné (do 2 000 bodov), 0 = bez bodov. Ak je prázdne, použije sa 1.'],
   ['Obrázok (URL)', 'Nepovinné. Verejná webová adresa obrázka (začína https://). Obrázok môžeš pridať aj neskôr v editore.'],
+  ['Vysvetlenie', 'Nepovinné. Krátke vysvetlenie správnej odpovede (najviac 300 znakov). Zobrazí sa po odhalení odpovede na projektore aj na mobiloch.'],
   ['', ''],
   ['Tipy', ''],
   ['', 'Každá otázka = jeden riadok. Prvý riadok s názvami stĺpcov nemeň.'],

@@ -31,6 +31,14 @@ export function toApiError(error: { message?: string } | null | undefined): ApiE
   const raw = error?.message ?? 'unknown'
   const code = Object.keys(MESSAGES).find((c) => raw === c || raw.includes(c))
   if (code) return new ApiError(code)
+  // napr. "Could not find the 'explanation' column of 'questions' in the schema cache"
+  const column = /Could not find the '(\w+)' column|column "?[\w.]*?(\w+)"? does not exist/i.exec(raw)
+  if (column) {
+    return new ApiError(
+      'schema_outdated',
+      `Databáza nie je aktuálna (chýba stĺpec „${column[1] ?? column[2]}“). V Supabase → SQL Editor spusti najnovší súbor zo supabase/migrations.`,
+    )
+  }
   if (/fetch|network|Failed to fetch|NetworkError/i.test(raw)) {
     return new ApiError('network', 'Nepodarilo sa spojiť so serverom. Skontroluj pripojenie.')
   }

@@ -4,7 +4,7 @@
 
 - **Administrácia** – tvorba kvízov v editore, obrázky k otázkam, kategórie, import/export z Excelu
 - **Tímy** – pripoja sa cez PIN alebo QR kód, zvolia si názov tímu (jedno zariadenie = jeden tím)
-- **Hra** – časový limit na otázku, 2–4 odpovede, priebežné poradie, finálne pódium s konfetami, export výsledkov do CSV
+- **Hra** – časový limit na otázku, 2–4 odpovede, vysvetlenie po odhalení odpovede, priebežné poradie, finálne pódium s konfetami, export výsledkov do CSV
 
 ## Ako to funguje
 
@@ -26,7 +26,7 @@ Projektor (učiteľ, /host/…) ──RPC──▶ Supabase Postgres ◀──RP
 ## 1. Nastavenie Supabase (raz, ~5 minút)
 
 1. Zaregistruj sa na [supabase.com](https://supabase.com) a vytvor nový projekt (región napr. _Central EU (Frankfurt)_).
-2. **SQL Editor → New query** → vlož celý obsah súboru [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) → **Run**.
+2. **SQL Editor → New query** → vlož celý obsah súboru [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) → **Run**. Potom rovnako spusti aj ďalšie súbory z [`supabase/migrations/`](supabase/migrations/) v poradí podľa čísla (`0002_explanation.sql`, …).
 3. **Authentication → Users → Add user → Create new user** – zadaj e-mail a heslo učiteľa, zaškrtni _Auto Confirm User_.
 4. V SQL Editore pridaj tento e-mail medzi administrátorov:
    ```sql
@@ -52,6 +52,12 @@ Projektor (učiteľ, /host/…) ──RPC──▶ Supabase Postgres ◀──RP
 
 Pri zmene premenných prostredia treba spraviť **Redeploy** (hodnoty sa vkladajú do aplikácie pri zostavení).
 
+### Zamknutie webu počas vývoja
+
+Kým aplikácia nie je hotová, môžeš celý web zamknúť heslom: vo Verceli pridaj premennú **`SITE_PASSWORD`** = ľubovoľné heslo a daj **Redeploy**. Prehliadač potom pri otvorení stránky vypýta meno a heslo (meno môže byť čokoľvek). Zámok rieši [`middleware.js`](middleware.js) priamo na serveri Vercelu, takže bez hesla sa nestiahne ani kód stránky.
+
+Pri spustení pre žiakov premennú `SITE_PASSWORD` zmaž a daj znova **Redeploy**. Lokálne (`npm run dev`) zámok nie je.
+
 ## 3. Lokálny vývoj
 
 ```bash
@@ -70,6 +76,7 @@ npm run dev               # http://localhost:5173
 | `npm run typecheck` | len kontrola typov                                                                                                                                     |
 | `npm run test:sql`  | testy hernej logiky v SQL (bodovanie, časovanie, práva) – bežia lokálne v PGlite, Supabase netreba                                                     |
 | `npm run test:e2e`  | celá hra proti tvojmu Supabase projektu (host + 3 tímy cez realtime); potrebuje v `.env` aj `E2E_ADMIN_EMAIL` a `E2E_ADMIN_PASSWORD`, po sebe upratuje |
+| `npm run test:middleware` | test zámku webu heslom (`SITE_PASSWORD`) |
 
 ---
 
@@ -94,13 +101,14 @@ Ovládanie projektora: **Medzerník / Enter / →** = ďalší krok, vpravo hore
 
 V administrácii klikni **Stiahnuť šablónu**, vyplň ju a nahraj cez **Importovať z Excelu** (nový kvíz) alebo v editore cez **Importovať otázky** (pridať k existujúcim).
 
-| Kategória | Otázka                         | Odpoveď A | Odpoveď B  | Odpoveď C | Odpoveď D | Správna | Čas (s) | Body | Obrázok (URL) |
-| --------- | ------------------------------ | --------- | ---------- | --------- | --------- | ------- | ------- | ---- | ------------- |
-| Geografia | Hlavné mesto Slovenska?        | Košice    | Bratislava | Žilina    | Nitra     | B       | 20      | 1    |               |
-| Šport     | Koľko hráčov má futbalový tím? | 9         | 11         |           |           | B       | 15      | 2    |               |
+| Kategória | Otázka                         | Odpoveď A | Odpoveď B  | Odpoveď C | Odpoveď D | Správna | Čas (s) | Body | Obrázok (URL) | Vysvetlenie                  |
+| --------- | ------------------------------ | --------- | ---------- | --------- | --------- | ------- | ------- | ---- | ------------- | ---------------------------- |
+| Geografia | Hlavné mesto Slovenska?        | Košice    | Bratislava | Žilina    | Nitra     | B       | 20      | 1    |               | Hlavné mesto od roku 1993.   |
+| Šport     | Koľko hráčov má futbalový tím? | 9         | 11         |           |           | B       | 15      | 2    |               |                              |
 
 - **Správna**: A / B / C / D (alebo 1–4) · **Čas**: 5–240 s (predvolene 20) · **Body**: 1 = štandardné, 2 = dvojnásobné, 0 = bez bodov
 - Odpovede C a D sú nepovinné, obrázok je nepovinný (verejná URL – alebo ho nahraj neskôr v editore).
+- **Vysvetlenie** je nepovinné (najviac 300 znakov) – zobrazí sa po odhalení správnej odpovede na projektore aj na mobiloch tímov.
 - Podporované sú `.xlsx`, `.xls` aj `.csv` (UTF-8).
 
 ---
@@ -108,7 +116,7 @@ V administrácii klikni **Stiahnuť šablónu**, vyplň ju a nahraj cez **Import
 ## Štruktúra projektu
 
 ```
-supabase/migrations/0001_init.sql  schéma, práva (RLS) a herná logika (RPC funkcie)
+supabase/migrations/               schéma, práva (RLS) a herná logika (RPC funkcie) – spúšťať v poradí
 supabase/seed.sql                  ukážkový kvíz
 tests/sql.test.mjs                 testy SQL logiky (PGlite)
 src/lib/                           API, realtime, synchronizácia času, typy, zvuky

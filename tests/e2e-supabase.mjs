@@ -59,7 +59,7 @@ try {
   if (qe) throw qe
   quizId = quiz.id
   const { error: qse } = await host.from('questions').insert([
-    { quiz_id: quizId, position: 0, category: 'Test', text: 'Otázka 1', answers: ['A', 'B', 'C', 'D'], correct: 2, time_limit: 5 },
+    { quiz_id: quizId, position: 0, category: 'Test', text: 'Otázka 1', answers: ['A', 'B', 'C', 'D'], correct: 2, time_limit: 5, explanation: 'Lebo C.' },
     { quiz_id: quizId, position: 1, category: 'Test', text: 'Otázka 2', answers: ['Áno', 'Nie'], correct: 0, time_limit: 5, points: 2000 },
   ])
   if (qse) throw qse
@@ -98,6 +98,7 @@ try {
   for (const p of players) {
     const g = await waitForStatus(p.events, 'preview', 0)
     assert.equal(g.question.correct, undefined)
+    assert.equal(g.question.explanation, undefined, 'vysvetlenie prezradené pred odhalením')
   }
 
   step('otvorenie odpovedí, tímy odpovedajú')
@@ -123,6 +124,7 @@ try {
     const g = await waitForStatus(p.events, 'reveal', 0)
     assert.equal(g.question.correct, 2)
     assert.deepEqual(g.question.counts, [1, 0, 2, 0])
+    assert.equal(g.question.explanation, 'Lebo C.')
   }
   const s0 = await rpc(players[0].c, 'team_state', { p_team_id: players[0].team.team_id, p_token: players[0].team.token })
   const s1 = await rpc(players[1].c, 'team_state', { p_team_id: players[1].team.team_id, p_token: players[1].team.token })

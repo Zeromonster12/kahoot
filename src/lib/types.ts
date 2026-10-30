@@ -16,6 +16,8 @@ export interface Question {
   /** sekundy, 5 – 240 */
   time_limit: number
   points: PointsMode
+  /** vysvetlenie po odhalení odpovede ('' = žiadne) */
+  explanation: string
 }
 
 export interface Quiz {
@@ -43,6 +45,8 @@ export interface PublicQuestion {
   counts?: number[]
   /** koľko tímov odpovedalo */
   answered?: number
+  /** vysvetlenie správnej odpovede ('' = žiadne) */
+  explanation?: string
 }
 
 export interface Game {

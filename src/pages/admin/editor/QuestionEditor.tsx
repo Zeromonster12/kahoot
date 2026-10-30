@@ -1,8 +1,16 @@
 import { useEffect, useId, useRef } from 'react'
-import { Tag } from 'lucide-react'
+import { Lightbulb, Tag } from 'lucide-react'
 import { CategoryBadge } from '../../../components/CategoryBadge'
 import { categoryColor } from '../../../lib/theme'
-import { MAX_CATEGORY, MAX_QUESTION, addAnswer, removeAnswer, type DraftQuestion, type QuestionIssues } from '../model'
+import {
+  MAX_CATEGORY,
+  MAX_EXPLANATION,
+  MAX_QUESTION,
+  addAnswer,
+  removeAnswer,
+  type DraftQuestion,
+  type QuestionIssues,
+} from '../model'
 import { AnswerGrid } from './AnswerGrid'
 import { AutoTextarea } from './AutoTextarea'
 import { ImagePicker } from './ImagePicker'
@@ -117,6 +125,28 @@ export function QuestionEditor({ quizId, question: q, index, count, categories, 
         onAdd={() => update(addAnswer)}
         onRemove={(i) => update((x) => removeAnswer(x, i))}
       />
+
+      <label className="block rounded-2xl border-2 border-transparent bg-white px-5 pt-4 pb-3 shadow-sm transition focus-within:border-brand-400">
+        <span className="mb-1.5 flex items-center gap-2 text-sm font-extrabold text-gray-700">
+          <Lightbulb className="size-4 text-ans-yellow" aria-hidden />
+          Vysvetlenie
+          <span className="font-semibold text-gray-400">(nepovinné)</span>
+        </span>
+        <AutoTextarea
+          value={q.explanation}
+          onChange={(e) => update((x) => ({ ...x, explanation: e.target.value }))}
+          maxLength={MAX_EXPLANATION}
+          placeholder="Prečo je to správne? Zobrazí sa po odhalení odpovede na projektore aj na mobiloch tímov."
+          className="block w-full resize-none bg-transparent leading-relaxed font-semibold outline-none placeholder:font-normal placeholder:text-gray-400"
+        />
+        <span
+          className={`mt-1 block text-right text-xs font-bold tabular-nums ${
+            q.explanation.length > MAX_EXPLANATION - 30 ? 'text-amber-600' : 'text-gray-300'
+          }`}
+        >
+          {q.explanation.length} / {MAX_EXPLANATION}
+        </span>
+      </label>
     </div>
   )
 }

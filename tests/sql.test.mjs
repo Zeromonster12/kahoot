@@ -1,10 +1,15 @@
-// Testy hernej logiky v SQL (supabase/migrations/0001_init.sql) na PGlite – Postgres vo WASM.
+// Testy hernej logiky v SQL (supabase/migrations/*.sql) na PGlite – Postgres vo WASM.
 // Spustenie: npm run test:sql
 import { PGlite } from '@electric-sql/pglite'
-import { readFileSync } from 'node:fs'
+import { readFileSync, readdirSync } from 'node:fs'
 import assert from 'node:assert/strict'
 
-const migration = readFileSync(new URL('../supabase/migrations/0001_init.sql', import.meta.url), 'utf8')
+// všetky migrácie v poradí (0001_init.sql, 0002_….sql, …)
+const migrationsDir = new URL('../supabase/migrations/', import.meta.url)
+const migrations = readdirSync(migrationsDir)
+  .filter((f) => f.endsWith('.sql'))
+  .sort()
+  .map((f) => readFileSync(new URL(f, migrationsDir), 'utf8'))
 
 const db = new PGlite()
 
@@ -19,7 +24,7 @@ await db.exec(`
   $$;
   grant execute on function auth.jwt() to anon, authenticated;
 `)
-await db.exec(migration)
+for (const sql of migrations) await db.exec(sql)
 await db.exec(`insert into public.admin_emails (email) values ('ucitel@skola.sk')`)
 
 const ADMIN = { role: 'authenticated', claims: { email: 'Ucitel@Skola.sk' } }
@@ -65,8 +70,18 @@ await test('admin vytvorí kvíz s otázkami', async () => {
       ($1, 2, 'Šport',     'Koľko hráčov má futbalový tím?', array['9','10','11'], 2, 10, 2000),
       ($1, 1, 'Geografia', 'Najvyšší štít Tatier?', array['Gerlachovský štít','Lomnický štít'], 0, 30, 0)
   `, [quizId])
+  await as(ADMIN, `update questions set explanation = 'Bratislava je hlavným mestom od roku 1993.' where quiz_id = $1 and position = 0`, [quizId])
   const rows = await as(ADMIN, `select count(*)::int as n from questions where quiz_id = $1`, [quizId])
   assert.equal(rows[0].n, 3)
+})
+
+await test('vysvetlenie má limit 300 znakov a predvolene je prázdne', async () => {
+  await rejects(
+    as(ADMIN, `update questions set explanation = repeat('x', 301) where quiz_id = $1 and position = 0`, [quizId]),
+    /check constraint/,
+  )
+  const [q] = await as(ADMIN, `select explanation from questions where quiz_id = $1 and position = 1`, [quizId])
+  assert.equal(q.explanation, '')
 })
 
 await test('anonym ani cudzí používateľ nevidí kvízy', async () => {
@@ -134,6 +149,7 @@ await test('preview: otázka je verejná, ale bez správnej odpovede; odpovedať
   assert.equal(g.status, 'preview')
   assert.equal(g.question.text, 'Hlavné mesto SR?')
   assert.equal(g.question.correct, undefined)
+  assert.equal(g.question.explanation, undefined, 'vysvetlenie by prezradilo odpoveď')
   assert.deepEqual(g.question.answers, ['Košice', 'Bratislava', 'Žilina', 'Nitra'])
   await rejects(as(ANON, `select submit_answer($1, $2, 1)`, [teamA.team_id, teamA.token]), /not_accepting/)
 })
@@ -174,6 +190,7 @@ await test('reveal: pripočíta body raz, zverejní správnu odpoveď a štatist
   assert.equal(g.question.correct, 1)
   assert.deepEqual(g.question.counts, [0, 2, 0, 0])
   assert.equal(g.question.answered, 2)
+  assert.equal(g.question.explanation, 'Bratislava je hlavným mestom od roku 1993.')
 
   const [{ team_state: s }] = await as(ANON, `select team_state($1, $2)`, [teamA.team_id, teamA.token])
   assert.equal(s.status, 'reveal')

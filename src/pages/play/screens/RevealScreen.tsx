@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { motion } from 'motion/react'
-import { Check, Clock, X } from 'lucide-react'
+import { Check, Clock, Lightbulb, X } from 'lucide-react'
 import { AnswerShape } from '../../../components/AnswerShape'
 import { vibrate } from '../../../lib/sound'
 import { ANSWER_STYLES, formatScore } from '../../../lib/theme'
@@ -99,6 +99,8 @@ export function RevealScreen({
         </>
       )}
 
+      <Explanation text={question.explanation ?? ''} />
+
       <motion.div
         initial={{ y: 16, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -111,6 +113,25 @@ export function RevealScreen({
         </p>
       </motion.div>
     </div>
+  )
+}
+
+/** Vysvetlenie správnej odpovede (ak ho učiteľ zadal). */
+function Explanation({ text }: { text: string }) {
+  const t = text.trim()
+  if (!t) return null
+  return (
+    <motion.div
+      initial={{ y: 16, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ delay: 0.5 }}
+      className="game-card flex w-full max-w-sm items-start gap-3 px-4 py-3 text-left"
+    >
+      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-ans-yellow text-white">
+        <Lightbulb className="size-5" aria-hidden />
+      </span>
+      <p className="min-w-0 flex-1 self-center leading-snug font-bold wrap-break-word whitespace-pre-line">{t}</p>
+    </motion.div>
   )
 }
 

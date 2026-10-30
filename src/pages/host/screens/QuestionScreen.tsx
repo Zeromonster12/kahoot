@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { Check, ChevronRight, SkipForward, Trophy } from 'lucide-react'
+import { Check, ChevronRight, Lightbulb, SkipForward, Trophy } from 'lucide-react'
 import { AnswerShape } from '../../../components/AnswerShape'
 import { Button } from '../../../components/Button'
 import { CountdownRing } from '../../../components/CountdownRing'
@@ -60,6 +60,7 @@ export function QuestionScreen({ game, teamCount, answeredCount, answers, rem, s
   const answered = revealed ? (q.answered ?? answeredCount) : answeredCount
   const correctCount = q.correct !== undefined ? (counts[q.correct] ?? 0) : 0
   const showImage = Boolean(q.image_url) && !imageFailed
+  const explanation = revealed ? (q.explanation ?? '').trim() : ''
 
   return (
     <div className="flex h-full flex-col gap-4 px-6 pb-6">
@@ -175,8 +176,28 @@ export function QuestionScreen({ game, teamCount, answeredCount, answers, rem, s
         </div>
       </div>
 
+      {explanation && <Explanation text={explanation} />}
+
       <AnswerTiles answers={q.answers} correct={revealed ? q.correct : undefined} />
     </div>
+  )
+}
+
+/** Vysvetlenie správnej odpovede – objaví sa chvíľu po odhalení. */
+function Explanation({ text }: { text: string }) {
+  const size = text.length <= 90 ? 'text-[2.1rem]' : text.length <= 180 ? 'text-[1.75rem]' : 'text-[1.5rem]'
+  return (
+    <motion.div
+      className="game-card flex shrink-0 items-center gap-5 px-7 py-4"
+      initial={{ y: 24, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ type: 'spring', stiffness: 260, damping: 24, delay: 0.7 }}
+    >
+      <span className="grid size-14 shrink-0 place-items-center rounded-full bg-ans-yellow text-white shadow-[0_0.25rem_0_rgb(0_0_0/0.2)]">
+        <Lightbulb className="size-8" strokeWidth={2.5} aria-hidden />
+      </span>
+      <p className={`min-w-0 flex-1 leading-snug font-bold wrap-break-word whitespace-pre-line ${size}`}>{text}</p>
+    </motion.div>
   )
 }
 

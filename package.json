@@ -9,7 +9,8 @@
     "preview": "vite preview --host",
     "typecheck": "tsc -p tsconfig.json",
     "test:sql": "node tests/sql.test.mjs",
-    "test:e2e": "node tests/e2e-supabase.mjs"
+    "test:e2e": "node tests/e2e-supabase.mjs",
+    "test:middleware": "node tests/middleware.test.mjs"
   },
   "dependencies": {
     "@fontsource-variable/montserrat": "^5.3.0",

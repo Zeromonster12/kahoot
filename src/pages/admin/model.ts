@@ -6,6 +6,7 @@ export const MAX_DESCRIPTION = 500
 export const MAX_CATEGORY = 60
 export const MAX_QUESTION = 400
 export const MAX_ANSWER = 120
+export const MAX_EXPLANATION = 300
 export const MIN_ANSWERS = 2
 export const MAX_ANSWERS = 4
 export const DEFAULT_TIME = 20
@@ -21,6 +22,8 @@ export interface DraftQuestion {
   correct: number
   time_limit: number
   points: PointsMode
+  /** vysvetlenie po odhalení odpovede – nepovinné */
+  explanation: string
 }
 
 /** Otázka bez id – výsledok importu z Excelu. */
@@ -36,6 +39,7 @@ export function newQuestion(prev?: Pick<DraftQuestion, 'category' | 'time_limit'
     correct: 0,
     time_limit: prev?.time_limit ?? DEFAULT_TIME,
     points: DEFAULT_POINTS,
+    explanation: '',
   }
 }
 
@@ -49,6 +53,7 @@ export function fromQuestion(q: Question): DraftQuestion {
     correct: q.correct ?? 0,
     time_limit: q.time_limit ?? DEFAULT_TIME,
     points: q.points ?? DEFAULT_POINTS,
+    explanation: q.explanation ?? '',
   }
 }
 
@@ -60,6 +65,7 @@ export function normalizeQuestion<T extends QuestionData>(q: T): T {
     text: q.text.trim(),
     image_url: q.image_url?.trim() || null,
     answers: q.answers.map((a) => a.trim()),
+    explanation: q.explanation.trim().slice(0, MAX_EXPLANATION),
   }
 }
 
@@ -77,6 +83,7 @@ export function toRow(q: QuestionData, quizId: string, position: number, id?: st
     correct: n.correct,
     time_limit: n.time_limit,
     points: n.points,
+    explanation: n.explanation,
   }
 }
 
@@ -124,7 +131,7 @@ export function addAnswer(q: DraftQuestion): DraftQuestion {
 }
 
 export function isBlank(q: DraftQuestion): boolean {
-  return !q.text.trim() && !q.image_url && q.answers.every((a) => !a.trim())
+  return !q.text.trim() && !q.image_url && !q.explanation.trim() && q.answers.every((a) => !a.trim())
 }
 
 /** Stabilný reťazec stavu – na porovnanie, či sú neuložené zmeny. */
