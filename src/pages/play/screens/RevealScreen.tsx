@@ -5,7 +5,7 @@ import { AnswerShape } from '../../../components/AnswerShape'
 import { vibrate } from '../../../lib/sound'
 import { ANSWER_STYLES, formatScore } from '../../../lib/theme'
 import type { PublicQuestion, TeamState } from '../../../lib/types'
-import { CountUp, pluralPoints } from '../ui'
+import { CountUp, ZoomableImage, pluralPoints } from '../ui'
 
 export type RevealResult = 'correct' | 'wrong' | 'none'
 
@@ -99,7 +99,7 @@ export function RevealScreen({
         </>
       )}
 
-      <Explanation text={question.explanation ?? ''} />
+      <Explanation text={question.explanation ?? ''} image={question.explanation_image_url ?? null} />
 
       <motion.div
         initial={{ y: 16, opacity: 0 }}
@@ -116,21 +116,26 @@ export function RevealScreen({
   )
 }
 
-/** Vysvetlenie správnej odpovede (ak ho učiteľ zadal). */
-function Explanation({ text }: { text: string }) {
+/** Vysvetlenie správnej odpovede (ak ho učiteľ zadal) – text a/alebo obrázok. */
+function Explanation({ text, image }: { text: string; image: string | null }) {
   const t = text.trim()
-  if (!t) return null
+  if (!t && !image) return null
   return (
     <motion.div
       initial={{ y: 16, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ delay: 0.5 }}
-      className="game-card flex w-full max-w-sm items-start gap-3 px-4 py-3 text-left"
+      className="game-card flex w-full max-w-sm flex-col items-center gap-3 px-4 py-3 text-left"
     >
-      <span className="grid size-9 shrink-0 place-items-center rounded-full bg-ans-yellow text-white">
-        <Lightbulb className="size-5" aria-hidden />
-      </span>
-      <p className="min-w-0 flex-1 self-center leading-snug font-bold wrap-break-word whitespace-pre-line">{t}</p>
+      <div className="flex w-full items-start gap-3">
+        <span className="grid size-9 shrink-0 place-items-center rounded-full bg-ans-yellow text-white">
+          <Lightbulb className="size-5" aria-hidden />
+        </span>
+        <p className="min-w-0 flex-1 self-center leading-snug font-bold wrap-break-word whitespace-pre-line">
+          {t || 'Vysvetlenie'}
+        </p>
+      </div>
+      {image && <ZoomableImage src={image} variant="inline" />}
     </motion.div>
   )
 }

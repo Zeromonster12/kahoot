@@ -70,7 +70,7 @@ await test('admin vytvorí kvíz s otázkami', async () => {
       ($1, 2, 'Šport',     'Koľko hráčov má futbalový tím?', array['9','10','11'], 2, 10, 2000),
       ($1, 1, 'Geografia', 'Najvyšší štít Tatier?', array['Gerlachovský štít','Lomnický štít'], 0, 30, 0)
   `, [quizId])
-  await as(ADMIN, `update questions set explanation = 'Bratislava je hlavným mestom od roku 1993.' where quiz_id = $1 and position = 0`, [quizId])
+  await as(ADMIN, `update questions set explanation = 'Bratislava je hlavným mestom od roku 1993.', explanation_image_url = 'https://example.com/mapa.png' where quiz_id = $1 and position = 0`, [quizId])
   const rows = await as(ADMIN, `select count(*)::int as n from questions where quiz_id = $1`, [quizId])
   assert.equal(rows[0].n, 3)
 })
@@ -80,8 +80,9 @@ await test('vysvetlenie má limit 300 znakov a predvolene je prázdne', async ()
     as(ADMIN, `update questions set explanation = repeat('x', 301) where quiz_id = $1 and position = 0`, [quizId]),
     /check constraint/,
   )
-  const [q] = await as(ADMIN, `select explanation from questions where quiz_id = $1 and position = 1`, [quizId])
+  const [q] = await as(ADMIN, `select explanation, explanation_image_url from questions where quiz_id = $1 and position = 1`, [quizId])
   assert.equal(q.explanation, '')
+  assert.equal(q.explanation_image_url, null)
 })
 
 await test('anonym ani cudzí používateľ nevidí kvízy', async () => {
@@ -150,6 +151,7 @@ await test('preview: otázka je verejná, ale bez správnej odpovede; odpovedať
   assert.equal(g.question.text, 'Hlavné mesto SR?')
   assert.equal(g.question.correct, undefined)
   assert.equal(g.question.explanation, undefined, 'vysvetlenie by prezradilo odpoveď')
+  assert.equal(g.question.explanation_image_url, undefined, 'obrázok k vysvetleniu by prezradil odpoveď')
   assert.deepEqual(g.question.answers, ['Košice', 'Bratislava', 'Žilina', 'Nitra'])
   await rejects(as(ANON, `select submit_answer($1, $2, 1)`, [teamA.team_id, teamA.token]), /not_accepting/)
 })
@@ -191,6 +193,7 @@ await test('reveal: pripočíta body raz, zverejní správnu odpoveď a štatist
   assert.deepEqual(g.question.counts, [0, 2, 0, 0])
   assert.equal(g.question.answered, 2)
   assert.equal(g.question.explanation, 'Bratislava je hlavným mestom od roku 1993.')
+  assert.equal(g.question.explanation_image_url, 'https://example.com/mapa.png')
 
   const [{ team_state: s }] = await as(ANON, `select team_state($1, $2)`, [teamA.team_id, teamA.token])
   assert.equal(s.status, 'reveal')

@@ -126,27 +126,36 @@ export function QuestionEditor({ quizId, question: q, index, count, categories, 
         onRemove={(i) => update((x) => removeAnswer(x, i))}
       />
 
-      <label className="block rounded-2xl border-2 border-transparent bg-white px-5 pt-4 pb-3 shadow-sm transition focus-within:border-brand-400">
-        <span className="mb-1.5 flex items-center gap-2 text-sm font-extrabold text-gray-700">
-          <Lightbulb className="size-4 text-ans-yellow" aria-hidden />
-          Vysvetlenie
-          <span className="font-semibold text-gray-400">(nepovinné)</span>
-        </span>
-        <AutoTextarea
-          value={q.explanation}
-          onChange={(e) => update((x) => ({ ...x, explanation: e.target.value }))}
-          maxLength={MAX_EXPLANATION}
-          placeholder="Prečo je to správne? Zobrazí sa po odhalení odpovede na projektore aj na mobiloch tímov."
-          className="block w-full resize-none bg-transparent leading-relaxed font-semibold outline-none placeholder:font-normal placeholder:text-gray-400"
+      <div className="rounded-2xl border-2 border-transparent bg-white px-5 pt-4 pb-4 shadow-sm transition focus-within:border-brand-400">
+        <label className="block">
+          <span className="mb-1.5 flex items-center gap-2 text-sm font-extrabold text-gray-700">
+            <Lightbulb className="size-4 text-ans-yellow" aria-hidden />
+            Vysvetlenie
+            <span className="font-semibold text-gray-400">(nepovinné)</span>
+          </span>
+          <AutoTextarea
+            value={q.explanation}
+            onChange={(e) => update((x) => ({ ...x, explanation: e.target.value }))}
+            maxLength={MAX_EXPLANATION}
+            placeholder="Prečo je to správne? Na projektore sa ukáže na samostatnej obrazovke po odhalení odpovede, tímom na mobiloch."
+            className="block w-full resize-none bg-transparent leading-relaxed font-semibold outline-none placeholder:font-normal placeholder:text-gray-400"
+          />
+          <span
+            className={`mt-1 block text-right text-xs font-bold tabular-nums ${
+              q.explanation.length > MAX_EXPLANATION - 30 ? 'text-amber-600' : 'text-gray-300'
+            }`}
+          >
+            {q.explanation.length} / {MAX_EXPLANATION}
+          </span>
+        </label>
+        <ImagePicker
+          quizId={quizId}
+          value={q.explanation_image_url}
+          onChange={(url) => update((x) => ({ ...x, explanation_image_url: url }))}
+          label="Pridať obrázok k vysvetleniu"
+          alt="Obrázok k vysvetleniu"
         />
-        <span
-          className={`mt-1 block text-right text-xs font-bold tabular-nums ${
-            q.explanation.length > MAX_EXPLANATION - 30 ? 'text-amber-600' : 'text-gray-300'
-          }`}
-        >
-          {q.explanation.length} / {MAX_EXPLANATION}
-        </span>
-      </label>
+      </div>
     </div>
   )
 }

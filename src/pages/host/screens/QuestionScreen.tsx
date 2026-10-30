@@ -10,7 +10,7 @@ import { sound } from '../../../lib/sound'
 import type { AnswerRow, Game } from '../../../lib/types'
 import { AnswerChart } from '../components/AnswerChart'
 import { AnswerTiles } from '../components/AnswerTiles'
-import { playSound, questionTextClass } from '../utils'
+import { hasExplanation, playSound, questionTextClass } from '../utils'
 
 interface Props {
   game: Game
@@ -61,7 +61,7 @@ export function QuestionScreen({ game, teamCount, answeredCount, answers, rem, s
   const correctCount = q.correct !== undefined ? (counts[q.correct] ?? 0) : 0
   const showImage = Boolean(q.image_url) && !imageFailed
   // vysvetlenie má samostatnú obrazovku (ExplanationScreen), sem patrí len tlačidlo na ňu
-  const hasExplanation = Boolean(q.explanation?.trim())
+  const explainable = hasExplanation(q)
 
   return (
     <div className="flex h-full flex-col gap-4 px-6 pb-6">
@@ -151,7 +151,7 @@ export function QuestionScreen({ game, teamCount, answeredCount, answers, rem, s
         <div className="flex w-[17rem] shrink-0 flex-col items-center justify-center gap-7">
           <Stat label="Odpovede" value={answered} total={teamCount} />
           {revealed ? (
-            hasExplanation ? (
+            explainable ? (
               <Button
                 variant="white"
                 size="xl"

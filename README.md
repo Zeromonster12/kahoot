@@ -85,7 +85,7 @@ npm run dev               # http://localhost:5173
 1. Učiteľ otvorí **`/admin`**, prihlási sa a pri kvíze klikne **Spustiť hru**.
 2. Na projektore sa zobrazí **PIN** a **QR kód**. Tímy otvoria hlavnú stránku aplikácie (alebo naskenujú QR), zadajú PIN a názov tímu.
 3. Tímy sa objavujú na projektore (kliknutím na tím ho môžeš vyhodiť, napr. pri nevhodnom názve). Keď sú všetci, klikni **Spustiť**.
-4. Každá otázka: 5 s sa zobrazuje otázka (aj s obrázkom) → otvoria sa odpovede a beží čas → po vypršaní času (alebo keď odpovedia všetky tímy) sa odhalí správna odpoveď so štatistikou → ak má otázka vysvetlenie, tlačidlo **Vysvetlenie** otvorí samostatnú obrazovku s otázkou, obrázkom, vysvetlením a správnou odpoveďou → priebežné poradie.
+4. Každá otázka: 5 s sa zobrazuje otázka (aj s obrázkom) → otvoria sa odpovede a beží čas → po vypršaní času (alebo keď odpovedia všetky tímy) sa odhalí správna odpoveď so štatistikou → ak má otázka vysvetlenie, tlačidlo **Vysvetlenie** otvorí samostatnú obrazovku s otázkou, vysvetlením (text a vlastný obrázok) a správnou odpoveďou → priebežné poradie.
 5. Po poslednej otázke **pódium top 3**, celé poradie a stiahnutie výsledkov do CSV (otvorí sa v Exceli).
 
 Ovládanie projektora: **Medzerník / Enter / →** = ďalší krok, vpravo hore stlmenie zvuku a celá obrazovka. Ak sa stránka projektora obnoví alebo zatvorí, hra pokračuje tam, kde skončila – stačí ju znova otvoriť (aj zo zoznamu **Posledné hry** v administrácii). To isté platí pre mobily tímov.
@@ -101,14 +101,15 @@ Ovládanie projektora: **Medzerník / Enter / →** = ďalší krok, vpravo hore
 
 V administrácii klikni **Stiahnuť šablónu**, vyplň ju a nahraj cez **Importovať z Excelu** (nový kvíz) alebo v editore cez **Importovať otázky** (pridať k existujúcim).
 
-| Kategória | Otázka                         | Odpoveď A | Odpoveď B  | Odpoveď C | Odpoveď D | Správna | Čas (s) | Body | Obrázok (URL) | Vysvetlenie                  |
-| --------- | ------------------------------ | --------- | ---------- | --------- | --------- | ------- | ------- | ---- | ------------- | ---------------------------- |
-| Geografia | Hlavné mesto Slovenska?        | Košice    | Bratislava | Žilina    | Nitra     | B       | 20      | 1    |               | Hlavné mesto od roku 1993.   |
-| Šport     | Koľko hráčov má futbalový tím? | 9         | 11         |           |           | B       | 15      | 2    |               |                              |
+| Kategória | Otázka                         | Odpoveď A | Odpoveď B  | Odpoveď C | Odpoveď D | Správna | Čas (s) | Body | Obrázok (URL) | Vysvetlenie                | Obrázok k vysvetleniu (URL) |
+| --------- | ------------------------------ | --------- | ---------- | --------- | --------- | ------- | ------- | ---- | ------------- | -------------------------- | --------------------------- |
+| Geografia | Hlavné mesto Slovenska?        | Košice    | Bratislava | Žilina    | Nitra     | B       | 20      | 1    |               | Hlavné mesto od roku 1993. |                             |
+| Šport     | Koľko hráčov má futbalový tím? | 9         | 11         |           |           | B       | 15      | 2    |               |                            |                             |
 
 - **Správna**: A / B / C / D (alebo 1–4) · **Čas**: 5–240 s (predvolene 20) · **Body**: 1 = štandardné, 2 = dvojnásobné, 0 = bez bodov
 - Odpovede C a D sú nepovinné, obrázok je nepovinný (verejná URL – alebo ho nahraj neskôr v editore).
 - **Vysvetlenie** je nepovinné (najviac 300 znakov) – na projektore má po odhalení správnej odpovede samostatnú obrazovku, na mobiloch tímov sa zobrazí pod výsledkom.
+- **Obrázok k vysvetleniu** je nepovinný (verejná URL alebo nahratie v editore) – ukáže sa na obrazovke vysvetlenia namiesto obrázka otázky. Vysvetlenie môže byť aj len obrázok bez textu.
 - Podporované sú `.xlsx`, `.xls` aj `.csv` (UTF-8).
 
 ---

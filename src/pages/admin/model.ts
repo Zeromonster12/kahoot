@@ -24,6 +24,8 @@ export interface DraftQuestion {
   points: PointsMode
   /** vysvetlenie po odhalení odpovede – nepovinné */
   explanation: string
+  /** vlastný obrázok k vysvetleniu – nepovinný */
+  explanation_image_url: string | null
 }
 
 /** Otázka bez id – výsledok importu z Excelu. */
@@ -40,6 +42,7 @@ export function newQuestion(prev?: Pick<DraftQuestion, 'category' | 'time_limit'
     time_limit: prev?.time_limit ?? DEFAULT_TIME,
     points: DEFAULT_POINTS,
     explanation: '',
+    explanation_image_url: null,
   }
 }
 
@@ -54,6 +57,7 @@ export function fromQuestion(q: Question): DraftQuestion {
     time_limit: q.time_limit ?? DEFAULT_TIME,
     points: q.points ?? DEFAULT_POINTS,
     explanation: q.explanation ?? '',
+    explanation_image_url: q.explanation_image_url || null,
   }
 }
 
@@ -66,6 +70,7 @@ export function normalizeQuestion<T extends QuestionData>(q: T): T {
     image_url: q.image_url?.trim() || null,
     answers: q.answers.map((a) => a.trim()),
     explanation: q.explanation.trim().slice(0, MAX_EXPLANATION),
+    explanation_image_url: q.explanation_image_url?.trim() || null,
   }
 }
 
@@ -84,6 +89,7 @@ export function toRow(q: QuestionData, quizId: string, position: number, id?: st
     time_limit: n.time_limit,
     points: n.points,
     explanation: n.explanation,
+    explanation_image_url: n.explanation_image_url,
   }
 }
 
@@ -131,7 +137,13 @@ export function addAnswer(q: DraftQuestion): DraftQuestion {
 }
 
 export function isBlank(q: DraftQuestion): boolean {
-  return !q.text.trim() && !q.image_url && !q.explanation.trim() && q.answers.every((a) => !a.trim())
+  return (
+    !q.text.trim() &&
+    !q.image_url &&
+    !q.explanation.trim() &&
+    !q.explanation_image_url &&
+    q.answers.every((a) => !a.trim())
+  )
 }
 
 /** Stabilný reťazec stavu – na porovnanie, či sú neuložené zmeny. */

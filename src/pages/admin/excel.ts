@@ -45,11 +45,24 @@ const HEADERS = [
   'Body',
   'Obrázok (URL)',
   'Vysvetlenie',
+  'Obrázok k vysvetleniu (URL)',
 ]
 
-const COL_WIDTHS = [18, 60, 26, 26, 26, 26, 10, 9, 8, 40, 60]
+const COL_WIDTHS = [18, 60, 26, 26, 26, 26, 10, 9, 8, 40, 60, 40]
 
-type Field = 'category' | 'text' | 'a' | 'b' | 'c' | 'd' | 'correct' | 'time' | 'points' | 'image' | 'explanation'
+type Field =
+  | 'category'
+  | 'text'
+  | 'a'
+  | 'b'
+  | 'c'
+  | 'd'
+  | 'correct'
+  | 'time'
+  | 'points'
+  | 'image'
+  | 'explanation'
+  | 'explanationImage'
 
 function answerAliases(letter: string, n: number): string[] {
   return [
@@ -105,6 +118,17 @@ const ALIASES: Record<Field, string[]> = {
   points: ['body', 'pocet bodov', 'bodovanie', 'points', 'score'],
   image: ['obrazok', 'obrazok url', 'obrazek', 'obrazek url', 'url obrazka', 'image', 'image url', 'foto', 'url'],
   explanation: ['vysvetlenie', 'vysvetleni', 'vysvetlenie odpovede', 'zdovodnenie', 'poznamka', 'explanation', 'reason'],
+  explanationImage: [
+    'obrazok k vysvetleniu',
+    'obrazok k vysvetleniu url',
+    'obrazok vysvetlenia',
+    'obrazok vysvetlenia url',
+    'obrazok k vysvetleni',
+    'vysvetlenie obrazok',
+    'vysvetlenie obrazok url',
+    'explanation image',
+    'explanation image url',
+  ],
 }
 
 function fieldFor(header: string): Field | null {
@@ -282,6 +306,12 @@ export function parseRows(rows: unknown[][], firstRowNumber = 1): ParseResult {
       continue
     }
 
+    const explanationImage = get(row, cols.explanationImage)
+    if (explanationImage && !isHttpUrl(explanationImage)) {
+      fail('Obrázok k vysvetleniu musí byť verejná webová adresa začínajúca na http:// alebo https://.')
+      continue
+    }
+
     // odpovede bez medzier (napr. prázdne C a vyplnené D → D sa posunie na miesto C)
     questions.push({
       category: get(row, cols.category).replace(/\s+/g, ' ').slice(0, MAX_CATEGORY),
@@ -292,6 +322,7 @@ export function parseRows(rows: unknown[][], firstRowNumber = 1): ParseResult {
       time_limit: time,
       points,
       explanation,
+      explanation_image_url: explanationImage || null,
     })
   }
   return { questions, errors }
@@ -422,6 +453,7 @@ function questionRow(q: QuestionData): (string | number)[] {
     pointsCell(q.points),
     q.image_url ?? '',
     q.explanation ?? '',
+    q.explanation_image_url ?? '',
   ]
 }
 
@@ -450,6 +482,7 @@ const SAMPLE: QuestionData[] = [
     points: 1000,
     image_url: null,
     explanation: 'Gerlachovský štít (2 655 m) je najvyšší vrch Slovenska aj celých Karpát.',
+    explanation_image_url: null,
   },
   {
     category: 'Príroda',
@@ -460,6 +493,7 @@ const SAMPLE: QuestionData[] = [
     points: 1000,
     image_url: null,
     explanation: 'Pavúky patria medzi pavúkovce, nie hmyz – hmyz má 6 nôh.',
+    explanation_image_url: null,
   },
   {
     category: 'Šport',
@@ -470,6 +504,7 @@ const SAMPLE: QuestionData[] = [
     points: 2000,
     image_url: null,
     explanation: '',
+    explanation_image_url: null,
   },
   {
     category: 'Príroda',
@@ -480,6 +515,7 @@ const SAMPLE: QuestionData[] = [
     points: 0,
     image_url: null,
     explanation: 'Slnko je najbližšia hviezda k Zemi.',
+    explanation_image_url: null,
   },
 ]
 
@@ -494,6 +530,7 @@ const GUIDE: string[][] = [
   ['Body', 'Nepovinné. 1 = štandardné (do 1 000 bodov), 2 = dvojnásobné (do 2 000 bodov), 0 = bez bodov. Ak je prázdne, použije sa 1.'],
   ['Obrázok (URL)', 'Nepovinné. Verejná webová adresa obrázka (začína https://). Obrázok môžeš pridať aj neskôr v editore.'],
   ['Vysvetlenie', 'Nepovinné. Krátke vysvetlenie správnej odpovede (najviac 300 znakov). Zobrazí sa po odhalení odpovede na projektore aj na mobiloch.'],
+  ['Obrázok k vysvetleniu (URL)', 'Nepovinné. Vlastný obrázok k vysvetleniu (verejná adresa https://…), napr. mapa alebo nákres. Ak chýba, pri vysvetlení sa ukáže obrázok otázky.'],
   ['', ''],
   ['Tipy', ''],
   ['', 'Každá otázka = jeden riadok. Prvý riadok s názvami stĺpcov nemeň.'],
@@ -505,7 +542,7 @@ const GUIDE: string[][] = [
 export async function downloadTemplate(): Promise<void> {
   const { XLSX, ws } = await questionsSheet(SAMPLE)
   const guide = XLSX.utils.aoa_to_sheet(GUIDE)
-  guide['!cols'] = [{ wch: 24 }, { wch: 110 }]
+  guide['!cols'] = [{ wch: 28 }, { wch: 110 }]
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Otázky')
   XLSX.utils.book_append_sheet(wb, guide, 'Návod')

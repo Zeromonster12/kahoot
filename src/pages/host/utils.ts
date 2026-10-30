@@ -1,8 +1,13 @@
-import type { Game } from '../../lib/types'
+import type { Game, PublicQuestion } from '../../lib/types'
 
 /** Kľúč stavu hry – každý prechod sa žiada najviac raz pre daný kľúč. */
 export function stateKey(g: Pick<Game, 'status' | 'question_index'>): string {
   return `${g.status}:${g.question_index}`
+}
+
+/** Má otázka po odhalení samostatnú obrazovku s vysvetlením (text alebo vlastný obrázok)? */
+export function hasExplanation(q: PublicQuestion | null | undefined): boolean {
+  return Boolean(q?.explanation?.trim() || q?.explanation_image_url)
 }
 
 /** "123456" → "123 456" */

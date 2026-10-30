@@ -28,7 +28,7 @@ import { PodiumScreen } from './screens/PodiumScreen'
 import { PreviewScreen } from './screens/PreviewScreen'
 import { QuestionScreen } from './screens/QuestionScreen'
 import { ScoreboardScreen } from './screens/ScoreboardScreen'
-import { errorMessage, stateKey } from './utils'
+import { errorMessage, hasExplanation, stateKey } from './utils'
 
 /** Rezerva po konci času – server prijíma odpovede ešte 1 s po ends_at. */
 const REVEAL_GRACE_MS = 1000
@@ -135,14 +135,14 @@ function HostGame({ gameId }: { gameId: string }) {
   }, [run, skipKey, key, gameId])
 
   // vysvetlenie je samostatná obrazovka po odhalení – len na projektore, server o nej nevie
-  const hasExplanation = Boolean(game?.question?.explanation?.trim())
+  const explainable = hasExplanation(game?.question)
   const [explainedKey, setExplainedKey] = useState<string | null>(null)
-  const explaining = status === 'reveal' && hasExplanation && explainedKey === key
+  const explaining = status === 'reveal' && explainable && explainedKey === key
 
   const nextKey = `${key}:next`
   const questionCount = game?.question_count ?? 0
   const next = useCallback(() => {
-    if (status === 'reveal' && hasExplanation && !explaining) {
+    if (status === 'reveal' && explainable && !explaining) {
       setExplainedKey(key)
     } else if (status === 'reveal') {
       const last = idx >= questionCount - 1
@@ -151,7 +151,7 @@ function HostGame({ gameId }: { gameId: string }) {
       const last = idx + 1 >= questionCount
       run(nextKey, () => (last ? hostFinish(gameId) : hostShowQuestion(gameId, idx + 1)), { expect: key })
     }
-  }, [status, hasExplanation, explaining, idx, questionCount, run, nextKey, key, gameId])
+  }, [status, explainable, explaining, idx, questionCount, run, nextKey, key, gameId])
 
   const endGame = useCallback(() => {
     setConfirmEnd(false)

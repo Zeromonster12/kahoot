@@ -10,10 +10,14 @@ interface Props {
   quizId: string
   value: string | null
   onChange: (url: string | null) => void
+  /** text na prázdnej ploche, napr. „Pridať obrázok k vysvetleniu“ */
+  label?: string
+  /** popis obrázka (alt) */
+  alt?: string
 }
 
 /** Obrázok k otázke: nahratie (klik / pretiahnutie / vloženie zo schránky) alebo odkaz. */
-export function ImagePicker({ quizId, value, onChange }: Props) {
+export function ImagePicker({ quizId, value, onChange, label = 'Pridať obrázok', alt = 'Obrázok k otázke' }: Props) {
   const fileRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
   const [dragOver, setDragOver] = useState(false)
@@ -119,7 +123,7 @@ export function ImagePicker({ quizId, value, onChange }: Props) {
         ) : (
           <img
             src={value}
-            alt="Obrázok k otázke"
+            alt={alt}
             onError={() => setBroken(true)}
             className="max-h-72 w-full object-contain"
           />
@@ -169,7 +173,7 @@ export function ImagePicker({ quizId, value, onChange }: Props) {
         onDragLeave={() => setDragOver(false)}
         onDrop={onDrop}
         onPaste={onPaste}
-        aria-label="Pridať obrázok – klikni, pretiahni sem súbor alebo vlož zo schránky"
+        aria-label={`${label} – klikni, pretiahni sem súbor alebo vlož zo schránky`}
         className={`relative flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-7 text-center transition outline-none focus-visible:ring-4 focus-visible:ring-brand-200 ${
           dragOver ? 'border-brand-500 bg-brand-50' : 'border-gray-300 bg-white/70 hover:border-brand-300 hover:bg-brand-50/50'
         }`}
@@ -177,7 +181,7 @@ export function ImagePicker({ quizId, value, onChange }: Props) {
         <span className="mb-2 flex size-12 items-center justify-center rounded-full bg-brand-100 text-brand-700">
           <ImagePlus className="size-6" />
         </span>
-        <span className="font-bold">Pridať obrázok</span>
+        <span className="font-bold">{label}</span>
         <span className="mt-0.5 text-sm text-gray-500">
           Klikni alebo sem pretiahni súbor (JPG, PNG, WebP, GIF). Môžeš ho aj vložiť cez Ctrl+V.
         </span>

@@ -18,6 +18,8 @@ export interface Question {
   points: PointsMode
   /** vysvetlenie po odhalení odpovede ('' = žiadne) */
   explanation: string
+  /** vlastný obrázok k vysvetleniu */
+  explanation_image_url: string | null
 }
 
 export interface Quiz {
@@ -47,6 +49,8 @@ export interface PublicQuestion {
   answered?: number
   /** vysvetlenie správnej odpovede ('' = žiadne) */
   explanation?: string
+  /** obrázok k vysvetleniu (až od stavu 'reveal') */
+  explanation_image_url?: string | null
 }
 
 export interface Game {
