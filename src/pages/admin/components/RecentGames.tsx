@@ -119,7 +119,7 @@ export function RecentGames({ games, error, loading, deletingId, onRetry, onDele
                   </p>
                 </div>
                 <div className="text-sm text-gray-500">
-                  PIN <span className="font-mono text-base font-bold tracking-wider text-ink">{g.pin}</span>
+                  PIN <span className="font-mono text-base font-bold tracking-wider text-ink">{g.pin ?? '—'}</span>
                 </div>
                 <div className="w-32">
                   <StatusPill status={g.status} />
@@ -137,7 +137,7 @@ export function RecentGames({ games, error, loading, deletingId, onRetry, onDele
                     onClick={() => onDelete(g)}
                     disabled={deletingId === g.id}
                     className="inline-flex size-9 items-center justify-center rounded-md text-gray-400 transition hover:bg-red-50 hover:text-ans-red disabled:opacity-40"
-                    aria-label={`Zmazať hru ${g.quiz_title} (PIN ${g.pin})`}
+                    aria-label={`Zmazať hru ${g.quiz_title}${g.pin ? ` (PIN ${g.pin})` : ''}`}
                     title="Zmazať hru"
                   >
                     <Trash2 className="size-4" />

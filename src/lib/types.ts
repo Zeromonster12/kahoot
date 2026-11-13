@@ -57,8 +57,9 @@ export interface Game {
   id: string
   quiz_id: string | null
   quiz_title: string
-  pin: string
   status: GameStatus
+  /** zamknutá hra neprijíma nové tímy (PIN je v neverejnej tabuľke game_pins) */
+  locked: boolean
   /** -1 v lobby */
   question_index: number
   question_count: number
@@ -117,6 +118,14 @@ export interface LeaderboardEntry {
   name: string
   score: number
   rank: number
+}
+
+/** Výsledok RPC find_game – bežiaca hra nájdená podľa PIN-u. */
+export interface FoundGame {
+  id: string
+  status: GameStatus
+  locked: boolean
+  quiz_title: string
 }
 
 export interface JoinResult {

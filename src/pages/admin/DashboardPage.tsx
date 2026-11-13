@@ -171,7 +171,8 @@ export default function DashboardPage() {
       title: 'Zmazať hru?',
       message: (
         <>
-          Hra <b className="text-ink">{game.quiz_title}</b> (PIN {game.pin}) sa zmaže aj s tímami a ich odpoveďami.
+          Hra <b className="text-ink">{game.quiz_title}</b>
+          {game.pin ? ` (PIN ${game.pin})` : ''} sa zmaže aj s tímami a ich odpoveďami.
           {running && (
             <span className="mt-2 block font-semibold text-ans-red">
               Hra ešte {isRunning(game.status) ? 'prebieha' : 'čaká na tímy'} – pripojené tímy budú odpojené.

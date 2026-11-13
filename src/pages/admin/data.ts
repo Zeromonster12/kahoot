@@ -116,7 +116,9 @@ export async function saveQuiz(
   }
 }
 
-export interface GameSummary extends Pick<Game, 'id' | 'quiz_id' | 'quiz_title' | 'pin' | 'status' | 'created_at' | 'finished_at' | 'question_count' | 'question_index'> {
+export interface GameSummary extends Pick<Game, 'id' | 'quiz_id' | 'quiz_title' | 'status' | 'created_at' | 'finished_at' | 'question_count' | 'question_index'> {
+  /** PIN z neverejnej tabuľky game_pins */
+  pin: string | null
   teamCount: number
 }
 
@@ -124,12 +126,20 @@ export async function listRecentGames(limit = 15): Promise<GameSummary[]> {
   const { data } = check(
     await supabase
       .from('games')
-      .select('id, quiz_id, quiz_title, pin, status, created_at, finished_at, question_count, question_index, teams(count)')
+      .select('id, quiz_id, quiz_title, status, created_at, finished_at, question_count, question_index, teams(count), game_pins(pin)')
       .order('created_at', { ascending: false })
       .limit(limit),
   )
-  type Row = Omit<GameSummary, 'teamCount'> & { teams: { count: number }[] | null }
-  return ((data ?? []) as Row[]).map(({ teams, ...g }) => ({ ...g, teamCount: teams?.[0]?.count ?? 0 }))
+  type Row = Omit<GameSummary, 'teamCount' | 'pin'> & {
+    teams: { count: number }[] | null
+    // vzťah 1:1 (game_pins.game_id je primárny kľúč) – PostgREST vracia objekt
+    game_pins: { pin: string } | { pin: string }[] | null
+  }
+  return ((data ?? []) as Row[]).map(({ teams, game_pins, ...g }) => ({
+    ...g,
+    pin: (Array.isArray(game_pins) ? game_pins[0]?.pin : game_pins?.pin) ?? null,
+    teamCount: teams?.[0]?.count ?? 0,
+  }))
 }
 
 export async function deleteGame(gameId: string): Promise<void> {

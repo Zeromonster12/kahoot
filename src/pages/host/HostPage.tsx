@@ -5,7 +5,7 @@ import { RotateCcw } from 'lucide-react'
 import { Button } from '../../components/Button'
 import { GameBackground } from '../../components/GameBackground'
 import { FullScreenSpinner } from '../../components/Spinner'
-import { hostFinish, hostOpenAnswers, hostReveal, hostScoreboard, hostShowQuestion } from '../../lib/api'
+import { getGamePin, hostFinish, hostOpenAnswers, hostReveal, hostScoreboard, hostSetLocked, hostShowQuestion } from '../../lib/api'
 import { serverNow, syncClock } from '../../lib/clock'
 import { PREVIEW_SECONDS } from '../../lib/theme'
 import { sound } from '../../lib/sound'
@@ -16,6 +16,7 @@ import { ConfirmDialog } from './components/ConfirmDialog'
 import { ErrorToast } from './components/ErrorToast'
 import { HostHeader } from './components/HostHeader'
 import { StatusPage } from './components/StatusPage'
+import { TeamsDialog } from './components/TeamsDialog'
 import { useAnswers } from './hooks/useAnswers'
 import { useFullscreen } from './hooks/useFullscreen'
 import { useHostActions } from './hooks/useHostActions'
@@ -43,6 +44,7 @@ export default function HostPage() {
 
 function HostGame({ gameId }: { gameId: string }) {
   const { game, error, reload } = useGame(gameId)
+  const pin = useGamePin(gameId, game != null)
   const rem = useProjectorScale()
   useWakeLock(true)
   const clockReady = useClockReady()
@@ -58,6 +60,7 @@ function HostGame({ gameId }: { gameId: string }) {
   const { run, isBusy, toast, notify, dismiss } = useHostActions(gameId, reload)
   const fullscreen = useFullscreen()
   const [confirmEnd, setConfirmEnd] = useState(false)
+  const [teamsOpen, setTeamsOpen] = useState(false)
 
   // prvý videný stav – ak je hra už ukončená, stupne víťazov bez dramatickej sekvencie
   const [initialStatus, setInitialStatus] = useState<GameStatus | null>(null)
@@ -163,6 +166,11 @@ function HostGame({ gameId }: { gameId: string }) {
     })
   }, [status, run, gameId])
 
+  const locked = game?.locked ?? false
+  const toggleLock = useCallback(() => {
+    run('lock', () => hostSetLocked(gameId, !locked))
+  }, [run, gameId, locked])
+
   const kickTeam = async (team: Team): Promise<void> => {
     try {
       await kick(team.id)
@@ -210,7 +218,7 @@ function HostGame({ gameId }: { gameId: string }) {
   switch (game.status) {
     case 'lobby':
       screenKey = 'lobby'
-      screen = <LobbyScreen game={game} teams={teams} starting={isBusy(startKey)} onStart={start} onKick={kickTeam} />
+      screen = <LobbyScreen game={game} pin={pin} teams={teams} starting={isBusy(startKey)} onStart={start} onKick={kickTeam} />
       break
     case 'preview':
       screenKey = `preview:${idx}`
@@ -261,7 +269,16 @@ function HostGame({ gameId }: { gameId: string }) {
   return (
     <GameBackground className="h-dvh">
       <div className="flex h-dvh flex-col">
-        <HostHeader game={game} ending={isBusy('end')} onEnd={() => setConfirmEnd(true)} />
+        <HostHeader
+          game={game}
+          pin={pin}
+          ending={isBusy('end')}
+          onEnd={() => setConfirmEnd(true)}
+          locking={isBusy('lock')}
+          onToggleLock={toggleLock}
+          onTeams={() => setTeamsOpen(true)}
+          teamCount={teamCount}
+        />
         <main className="relative min-h-0 flex-1">
           <AnimatePresence mode="wait" initial={false}>
             <motion.div
@@ -287,9 +304,40 @@ function HostGame({ gameId }: { gameId: string }) {
         onConfirm={endGame}
         onCancel={() => setConfirmEnd(false)}
       />
+      <TeamsDialog
+        open={teamsOpen && game.status !== 'lobby' && game.status !== 'finished'}
+        teams={teams}
+        onKick={kickTeam}
+        onClose={() => setTeamsOpen(false)}
+      />
       <ErrorToast toast={toast} onDismiss={dismiss} />
     </GameBackground>
   )
+}
+
+/** PIN hry z neverejnej tabuľky game_pins (len admin). Načíta sa, keď je hra načítaná. */
+function useGamePin(gameId: string, ready: boolean): string | null {
+  const [pin, setPin] = useState<string | null>(null)
+  useEffect(() => {
+    if (!ready || pin) return
+    let alive = true
+    let retry: ReturnType<typeof setTimeout> | undefined
+    const load = () => {
+      getGamePin(gameId)
+        .then((p) => {
+          if (alive && p) setPin(p)
+        })
+        .catch(() => {
+          if (alive) retry = setTimeout(load, 3000) // výpadok siete – skús znova
+        })
+    }
+    load()
+    return () => {
+      alive = false
+      clearTimeout(retry)
+    }
+  }, [gameId, ready, pin])
+  return pin
 }
 
 /** Synchronizácia hodín so serverom; do jej dokončenia sa podľa času neodhaľuje. */

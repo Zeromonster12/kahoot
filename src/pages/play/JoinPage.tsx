@@ -4,7 +4,7 @@ import { AnimatePresence, MotionConfig, motion, useAnimate } from 'motion/react'
 import { ArrowLeft, Dices, Play } from 'lucide-react'
 import { ApiError, findGameByPin, getGame, joinGame } from '../../lib/api'
 import { clearTeamSession, loadTeamSession, saveTeamSession, type TeamSession } from '../../lib/session'
-import type { Game } from '../../lib/types'
+import type { FoundGame } from '../../lib/types'
 import { Button } from '../../components/Button'
 import { GameBackground } from '../../components/GameBackground'
 import { Logo } from '../../components/Logo'
@@ -25,7 +25,7 @@ export function JoinPage() {
   const [pin, setPin] = useState('')
   const [pinError, setPinError] = useState<string | null>(null)
   const [checking, setChecking] = useState(false)
-  const [game, setGame] = useState<Game | null>(null)
+  const [game, setGame] = useState<FoundGame | null>(null)
   const [name, setName] = useState('')
   const [nameError, setNameError] = useState<string | null>(null)
   const [joining, setJoining] = useState(false)
@@ -49,6 +49,11 @@ export function JoinPage() {
         const g = await findGameByPin(value)
         if (!g) {
           setPinError(`Hru s PIN-om ${value} sme nenašli. Skontrolujte ho na projektore.`)
+          shake()
+          return
+        }
+        if (g.locked) {
+          setPinError(new ApiError('game_locked').message)
           shake()
           return
         }
@@ -137,6 +142,9 @@ export function JoinPage() {
       if (err instanceof ApiError && err.code === 'game_not_found') {
         backToPin()
         setPinError('Hra medzitým skončila alebo neexistuje. Skontrolujte PIN.')
+      } else if (err instanceof ApiError && err.code === 'game_locked') {
+        backToPin()
+        setPinError(err.message)
       } else {
         setNameError(err instanceof Error ? err.message : 'Pripojenie sa nepodarilo. Skúste znova.')
       }

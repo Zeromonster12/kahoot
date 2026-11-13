@@ -104,8 +104,10 @@ await test('create_game: len admin, skopíruje otázky v poradí', async () => {
   await rejects(as(OTHER, `select create_game($1)`, [quizId]), /not_authorized/)
   ;[{ create_game: gameId }] = await as(ADMIN, `select create_game($1)`, [quizId])
   const [g] = await as(ADMIN, `select * from games where id = $1`, [gameId])
-  pin = g.pin
+  ;[{ pin }] = await as(ADMIN, `select pin from game_pins where game_id = $1 and active`, [gameId])
   assert.match(pin, /^\d{6}$/)
+  assert.equal(g.pin, undefined, 'PIN nesmie byť vo verejnej tabuľke games')
+  assert.equal(g.locked, false)
   assert.equal(g.status, 'lobby')
   assert.equal(g.question_count, 3)
   const qs = await as(ADMIN, `select idx, text from game_questions where game_id = $1 order by idx`, [gameId])
@@ -130,12 +132,33 @@ await test('join_game: tímy sa pripoja, meno je unikátne bez ohľadu na veľko
 })
 
 await test('anonym vidí hru, ale nie tímy, tokeny, odpovede ani správne odpovede', async () => {
-  const games = await as(ANON, `select pin, status from games where id = $1`, [gameId])
+  const games = await as(ANON, `select * from games where id = $1`, [gameId])
   assert.equal(games.length, 1)
   await rejects(as(ANON, `select * from teams`), /permission denied/)
   await rejects(as(ANON, `select * from answers`), /permission denied/)
   await rejects(as(ANON, `select * from game_questions`), /permission denied/)
   await rejects(as(ANON, `update games set status = 'finished'`), /permission denied/)
+})
+
+await test('PIN-y nie sú verejné: anonym ich nevypíše, hru nájde len so správnym PIN-om', async () => {
+  const [g] = await as(ANON, `select * from games where id = $1`, [gameId])
+  assert.ok(!('pin' in g), 'riadok games nesmie obsahovať PIN')
+  await rejects(as(ANON, `select * from game_pins`), /permission denied/)
+  await rejects(as(ANON, `select * from game_kicked_names`), /permission denied/)
+  const others = await as(OTHER, `select * from game_pins`)
+  assert.equal(others.length, 0, 'prihlásený ne-admin nevidí PIN-y')
+  const [{ find_game: found }] = await as(ANON, `select find_game($1)`, [` ${pin} `])
+  assert.deepEqual(found, { id: gameId, status: 'lobby', locked: false, quiz_title: 'Test kvíz' })
+  const [{ find_game: none }] = await as(ANON, `select find_game($1)`, ['000000'])
+  assert.equal(none, null)
+})
+
+await test('hostovské funkcie zámku a vyhadzovania nemôže volať anonym ani cudzí používateľ', async () => {
+  await rejects(as(ANON, `select host_set_locked($1, true)`, [gameId]), /permission denied/)
+  await rejects(as(OTHER, `select host_set_locked($1, true)`, [gameId]), /not_authorized/)
+  await rejects(as(ANON, `select host_kick_team($1)`, [teamA.team_id]), /permission denied/)
+  await rejects(as(OTHER, `select host_kick_team($1)`, [teamA.team_id]), /not_authorized/)
+  await rejects(as(ANON, `select clean_team_name('x')`), /permission denied/)
 })
 
 await test('hostovské akcie nemôže volať anonym ani cudzí používateľ', async () => {
@@ -146,8 +169,10 @@ await test('hostovské akcie nemôže volať anonym ani cudzí používateľ', a
 
 await test('preview: otázka je verejná, ale bez správnej odpovede; odpovedať sa ešte nedá', async () => {
   await as(ADMIN, `select host_show_question($1, 0)`, [gameId])
-  const [g] = await as(ANON, `select status, question from games where id = $1`, [gameId])
+  const [g] = await as(ANON, `select status, locked, question from games where id = $1`, [gameId])
   assert.equal(g.status, 'preview')
+  assert.equal(g.locked, true, 'prvou otázkou sa hra sama zamkne')
+  await rejects(as(ANON, `select join_game($1, $2)`, [pin, 'Neskorý tím']), /game_locked/)
   assert.equal(g.question.text, 'Hlavné mesto SR?')
   assert.equal(g.question.correct, undefined)
   assert.equal(g.question.explanation, undefined, 'vysvetlenie by prezradilo odpoveď')
@@ -234,14 +259,92 @@ await test('dvojnásobné body a rebríček', async () => {
   assert.deepEqual(lb.map((t) => t.rank), [1, 2, 3])
 })
 
-await test('koniec hry: PIN sa uvoľní, pripojiť sa už nedá', async () => {
+await test('koniec hry: PIN sa uvoľní, pripojiť sa už nedá, správna odpoveď zmizne z verejného riadku', async () => {
   await rejects(as(ADMIN, `select host_show_question($1, 3)`, [gameId]), /invalid_index/)
   await as(ADMIN, `select host_finish($1)`, [gameId])
-  const [g] = await as(ANON, `select status, finished_at from games where id = $1`, [gameId])
+  const [g] = await as(ANON, `select status, finished_at, question from games where id = $1`, [gameId])
   assert.equal(g.status, 'finished')
   assert.ok(g.finished_at)
+  assert.equal(g.question.correct, undefined, 'ukončená hra nesmie byť ťahákom')
+  assert.equal(g.question.counts, undefined)
+  assert.equal(g.question.explanation, undefined)
+  assert.equal(g.question.text, 'Koľko hráčov má futbalový tím?')
+  const [p] = await as(ADMIN, `select active from game_pins where game_id = $1`, [gameId])
+  assert.equal(p.active, false)
   await rejects(as(ANON, `select join_game($1, $2)`, [pin, 'Neskorý tím']), /game_not_found/)
+  const [{ find_game: none }] = await as(ANON, `select find_game($1)`, [pin])
+  assert.equal(none, null)
   await rejects(as(ADMIN, `select host_show_question($1, 0)`, [gameId]), /game_finished/)
+  await rejects(as(ADMIN, `select host_set_locked($1, false)`, [gameId]), /game_finished/)
+})
+
+// ---------------------------------------------------------------------------
+// Zámok hry, vyhadzovanie, názvy tímov, strop 200 tímov (samostatná hra)
+
+let game2, pin2
+await test('zamknutie a odomknutie hry', async () => {
+  ;[{ create_game: game2 }] = await as(ADMIN, `select create_game($1)`, [quizId])
+  ;[{ pin: pin2 }] = await as(ADMIN, `select pin from game_pins where game_id = $1`, [game2])
+  assert.notEqual(pin2, pin)
+  await as(ADMIN, `select host_set_locked($1, true)`, [game2])
+  const [{ find_game: f }] = await as(ANON, `select find_game($1)`, [pin2])
+  assert.equal(f.locked, true)
+  await rejects(as(ANON, `select join_game($1, $2)`, [pin2, 'Sovy']), /game_locked/)
+  await as(ADMIN, `select host_set_locked($1, false)`, [game2])
+  await as(ANON, `select join_game($1, $2)`, [pin2, 'Sovy'])
+})
+
+await test('vyhodený tím sa s rovnakým názvom nevráti, s iným áno', async () => {
+  const [t] = await as(ADMIN, `select id, token from teams where game_id = $1 and name = 'Sovy'`, [game2])
+  await as(ADMIN, `select host_kick_team($1)`, [t.id])
+  await as(ADMIN, `select host_kick_team($1)`, [t.id]) // opakované volanie nič nepokazí
+  await rejects(as(ANON, `select team_state($1, $2)`, [t.id, t.token]), /team_not_found/)
+  await rejects(as(ANON, `select join_game($1, $2)`, [pin2, 'SOVY']), /name_kicked/)
+  await as(ANON, `select join_game($1, $2)`, [pin2, 'Sovy 2'])
+})
+
+await test('názov tímu: NFKC, bez neviditeľných a riadiacich znakov', async () => {
+  const [{ join_game: a }] = await as(ANON, `select join_game($1, $2)`, [pin2, '​Líš­ky‮ \t tím﻿'])
+  assert.equal(a.name, 'Líšky tím')
+  const [{ join_game: b }] = await as(ANON, `select join_game($1, $2)`, [pin2, 'ＡＢＣ'])
+  assert.equal(b.name, 'ABC')
+  await rejects(as(ANON, `select join_game($1, $2)`, [pin2, 'a​bc']), /name_taken/)
+  await rejects(as(ANON, `select join_game($1, $2)`, [pin2, '​‌⁦']), /invalid_name/)
+})
+
+await test('strop 200 tímov na hru', async () => {
+  const [{ n }] = await as(ADMIN, `select count(*)::int as n from teams where game_id = $1`, [game2])
+  await db.query(`insert into teams (game_id, name) select $1, 'bot ' || i from generate_series(1, $2::int) i`, [game2, 199 - n])
+  await as(ANON, `select join_game($1, $2)`, [pin2, 'Dvojstý tím'])
+  await rejects(as(ANON, `select join_game($1, $2)`, [pin2, 'Navyše']), /game_full/)
+  await as(ADMIN, `select host_finish($1)`, [game2])
+})
+
+// ---------------------------------------------------------------------------
+// Sprísnenie (0005)
+
+await test('práva: anonym nemá zápis do games, nikto okrem servera nemení admin_emails', async () => {
+  const privs = await db.query(`
+    select grantee, privilege_type from information_schema.role_table_grants
+    where table_schema = 'public' and grantee in ('anon', 'authenticated')
+      and (table_name = 'admin_emails' and privilege_type <> 'SELECT'
+           or table_name = 'games' and grantee = 'anon' and privilege_type <> 'SELECT'
+           or privilege_type in ('TRUNCATE', 'TRIGGER', 'REFERENCES'))`)
+  assert.deepEqual(privs.rows, [])
+})
+
+await test('všetky funkcie majú search_path s pg_temp', async () => {
+  const { rows } = await db.query(`
+    select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and not coalesce('search_path=public, pg_temp' = any (p.proconfig), false)`)
+  assert.deepEqual(rows.map((r) => r.proname), [])
+})
+
+await test('obrázky k otázkam len cez https://', async () => {
+  const [{ id }] = await as(ADMIN, `select id from questions where quiz_id = $1 limit 1`, [quizId])
+  await rejects(as(ADMIN, `update questions set image_url = 'http://example.com/a.png' where id = $1`, [id]), /check constraint/)
+  await rejects(as(ADMIN, `update questions set explanation_image_url = 'javascript:alert(1)' where id = $1`, [id]), /check constraint/)
+  await as(ADMIN, `update questions set image_url = 'https://example.com/a.png', explanation_image_url = null where id = $1`, [id])
 })
 
 await test('vymazanie kvízu nezmaže odohrané hry', async () => {

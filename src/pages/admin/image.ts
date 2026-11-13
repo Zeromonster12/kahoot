@@ -91,11 +91,11 @@ export async function uploadQuestionImage(quizId: string, file: File): Promise<s
   return supabase.storage.from(IMAGE_BUCKET).getPublicUrl(path).data.publicUrl
 }
 
-/** Verejná http(s) adresa obrázka? */
+/** Verejná https adresa obrázka? (http nie – na mobiloch žiakov by šlo o nešifrovaný obsah; DB ho odmietne) */
 export function isImageUrl(s: string): boolean {
   try {
     const u = new URL(s.trim())
-    return u.protocol === 'https:' || u.protocol === 'http:'
+    return u.protocol === 'https:'
   } catch {
     return false
   }

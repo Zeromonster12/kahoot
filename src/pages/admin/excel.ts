@@ -203,8 +203,9 @@ function parsePoints(raw: string): PointsMode | null {
   return null
 }
 
-function isHttpUrl(s: string): boolean {
-  return /^https?:\/\/\S+$/i.test(s)
+/** Len https:// – databáza http:// adresy obrázkov odmietne (mixed content na mobiloch žiakov). */
+function isHttpsUrl(s: string): boolean {
+  return /^https:\/\/\S+$/.test(s)
 }
 
 /** Spracuje riadky tabuľky (prvý riadok s hlavičkou sa nájde automaticky). */
@@ -295,8 +296,8 @@ export function parseRows(rows: unknown[][], firstRowNumber = 1): ParseResult {
     }
 
     const image = get(row, cols.image)
-    if (image && !isHttpUrl(image)) {
-      fail('Obrázok musí byť verejná webová adresa začínajúca na http:// alebo https://.')
+    if (image && !isHttpsUrl(image)) {
+      fail('Obrázok musí byť verejná webová adresa začínajúca na https://.')
       continue
     }
 
@@ -307,8 +308,8 @@ export function parseRows(rows: unknown[][], firstRowNumber = 1): ParseResult {
     }
 
     const explanationImage = get(row, cols.explanationImage)
-    if (explanationImage && !isHttpUrl(explanationImage)) {
-      fail('Obrázok k vysvetleniu musí byť verejná webová adresa začínajúca na http:// alebo https://.')
+    if (explanationImage && !isHttpsUrl(explanationImage)) {
+      fail('Obrázok k vysvetleniu musí byť verejná webová adresa začínajúca na https://.')
       continue
     }
 

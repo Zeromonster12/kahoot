@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { QRCodeSVG } from 'qrcode.react'
-import { Play, Users, X } from 'lucide-react'
+import { Lock, Play, Users, X } from 'lucide-react'
 import { AnswerShape } from '../../../components/AnswerShape'
 import { Button } from '../../../components/Button'
 import { ANSWER_STYLES, pluralQuestions, pluralTeams } from '../../../lib/theme'
@@ -12,6 +12,8 @@ import { formatPin, playSound, teamColor } from '../utils'
 
 interface Props {
   game: Game
+  /** PIN z neverejnej tabuľky game_pins (null, kým sa nenačíta) */
+  pin: string | null
   teams: Team[] | null
   starting: boolean
   onStart: () => void
@@ -26,12 +28,12 @@ function chipClass(n: number): string {
   return 'px-3 py-1.5 text-[1.05rem]'
 }
 
-export function LobbyScreen({ game, teams, starting, onStart, onKick }: Props) {
+export function LobbyScreen({ game, pin, teams, starting, onStart, onKick }: Props) {
   const [kickTarget, setKickTarget] = useState<Team | null>(null)
   const [kicking, setKicking] = useState(false)
   const count = teams?.length ?? 0
   const host = window.location.host
-  const joinUrl = `${window.location.origin}/?pin=${game.pin}`
+  const joinUrl = `${window.location.origin}/?pin=${pin ?? ''}`
 
   // zvuk pri príchode nového tímu – nie pri prvom načítaní zoznamu
   const seen = useRef<Set<string> | null>(null)
@@ -74,8 +76,8 @@ export function LobbyScreen({ game, teams, starting, onStart, onKick }: Props) {
           </p>
           <div className="mt-1 flex items-baseline gap-5">
             <span className="text-[2rem] font-extrabold text-gray-600">PIN hry:</span>
-            <span className="text-[7rem] leading-none font-black tracking-[0.06em] tabular-nums" aria-label={`PIN ${game.pin}`}>
-              {formatPin(game.pin)}
+            <span className="text-[7rem] leading-none font-black tracking-[0.06em] tabular-nums" aria-label={`PIN ${pin ?? ''}`}>
+              {pin ? formatPin(pin) : '··· ···'}
             </span>
           </div>
         </motion.div>
@@ -85,7 +87,11 @@ export function LobbyScreen({ game, teams, starting, onStart, onKick }: Props) {
           animate={{ y: 0, opacity: 1 }}
           transition={{ type: 'spring', stiffness: 260, damping: 22, delay: 0.08 }}
         >
-          <QRCodeSVG value={joinUrl} size={512} level="M" marginSize={0} className="size-[11rem]" title="QR kód na pripojenie" />
+          {pin ? (
+            <QRCodeSVG value={joinUrl} size={512} level="M" marginSize={0} className="size-[11rem]" title="QR kód na pripojenie" />
+          ) : (
+            <div className="size-[11rem] rounded-lg bg-gray-100" aria-hidden />
+          )}
           <p className="text-[1.15rem] font-extrabold text-gray-600">Naskenujte mobilom</p>
         </motion.div>
       </div>
@@ -94,6 +100,12 @@ export function LobbyScreen({ game, teams, starting, onStart, onKick }: Props) {
       <div className="max-w-full shrink-0 text-center">
         <h1 className="line-clamp-1 text-[2.75rem] leading-tight font-black break-all text-shadow">{game.quiz_title}</h1>
         <p className="text-[1.4rem] font-bold opacity-80">{pluralQuestions(game.question_count)}</p>
+        {game.locked && (
+          <p className="mt-2 inline-flex items-center gap-2 rounded-full bg-black/30 px-5 py-1.5 text-[1.4rem] font-extrabold">
+            <Lock className="size-6" aria-hidden />
+            Hra je zamknutá – nové tímy sa nepripoja
+          </p>
+        )}
       </div>
 
       {/* počet tímov + spustenie */}
@@ -165,7 +177,7 @@ export function LobbyScreen({ game, teams, starting, onStart, onKick }: Props) {
       <ConfirmDialog
         open={kickTarget !== null}
         title={`Vyhodiť tím „${kickTarget?.name ?? ''}“?`}
-        message="Tím zmizne z hry. Ak bude chcieť hrať ďalej, musí sa pripojiť znova."
+        message="Tím zmizne z hry a s rovnakým názvom sa do nej už nepripojí."
         confirmLabel="Vyhodiť"
         danger
         busy={kicking}

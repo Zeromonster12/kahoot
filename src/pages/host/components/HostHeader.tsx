@@ -1,4 +1,4 @@
-import { Maximize, Minimize, Power, Smartphone, Tag } from 'lucide-react'
+import { Lock, LockOpen, Maximize, Minimize, Power, Smartphone, Tag, Users } from 'lucide-react'
 import { Logo } from '../../../components/Logo'
 import { MuteButton } from '../../../components/MuteButton'
 import { categoryColor } from '../../../lib/theme'
@@ -10,8 +10,21 @@ import { PointsBadge } from './PointsBadge'
 const ROUND_BUTTON =
   'inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-black/20 text-white transition hover:bg-black/30'
 
-/** Horná lišta: logo, číslo otázky, údaje na pripojenie a ovládanie (zvuk, celá obrazovka, ukončenie). */
-export function HostHeader({ game, onEnd, ending }: { game: Game; onEnd: () => void; ending: boolean }) {
+interface Props {
+  game: Game
+  /** PIN z neverejnej tabuľky game_pins (null, kým sa nenačíta) */
+  pin: string | null
+  onEnd: () => void
+  ending: boolean
+  onToggleLock: () => void
+  locking: boolean
+  /** otvorí zoznam tímov (vyhadzovanie počas hry) */
+  onTeams: () => void
+  teamCount: number
+}
+
+/** Horná lišta: logo, číslo otázky, údaje na pripojenie a ovládanie (tímy, zámok, zvuk, celá obrazovka, ukončenie). */
+export function HostHeader({ game, pin, onEnd, ending, onToggleLock, locking, onTeams, teamCount }: Props) {
   const fs = useFullscreen()
   const { status, question: q } = game
   const inGame = status !== 'lobby' && status !== 'finished'
@@ -43,21 +56,54 @@ export function HostHeader({ game, onEnd, ending }: { game: Game; onEnd: () => v
         {showQuestionInfo && <PointsBadge points={q.points} />}
       </div>
 
-      {inGame && (
-        <div
-          className="flex shrink-0 items-center gap-2 rounded-full bg-black/25 px-4 py-1.5 text-[1.3rem] font-bold"
-          title="Neskoro prišlé tímy sa môžu pripojiť aj počas hry"
-        >
-          <Smartphone className="size-5" aria-hidden />
-          <span>{window.location.host}</span>
-          <span className="opacity-50">·</span>
-          <span>
-            PIN <span className="font-black tracking-wider tabular-nums">{formatPin(game.pin)}</span>
-          </span>
-        </div>
-      )}
+      {inGame &&
+        (game.locked ? (
+          <div
+            className="flex shrink-0 items-center gap-2 rounded-full bg-black/25 px-4 py-1.5 text-[1.3rem] font-bold"
+            title="Nové tímy sa nemôžu pripojiť – odomknete tlačidlom so zámkom"
+          >
+            <Lock className="size-5" aria-hidden />
+            <span>Hra je zamknutá</span>
+          </div>
+        ) : (
+          <div
+            className="flex shrink-0 items-center gap-2 rounded-full bg-black/25 px-4 py-1.5 text-[1.3rem] font-bold"
+            title="Neskoro prišlé tímy sa môžu pripojiť aj počas hry"
+          >
+            <Smartphone className="size-5" aria-hidden />
+            <span>{window.location.host}</span>
+            <span className="opacity-50">·</span>
+            <span>
+              PIN <span className="font-black tracking-wider tabular-nums">{pin ? formatPin(pin) : '…'}</span>
+            </span>
+          </div>
+        ))}
 
       <div className="flex shrink-0 items-center gap-2">
+        {inGame && (
+          <button
+            type="button"
+            onClick={onTeams}
+            className="inline-flex h-11 shrink-0 items-center gap-2 rounded-full bg-black/20 px-4 font-bold text-white transition hover:bg-black/30"
+            title="Tímy v hre (vyhodenie tímu)"
+          >
+            <Users className="size-5" aria-hidden />
+            <span className="tabular-nums">{teamCount}</span>
+          </button>
+        )}
+        {status !== 'finished' && (
+          <button
+            type="button"
+            onClick={onToggleLock}
+            disabled={locking}
+            className={`${ROUND_BUTTON} disabled:opacity-50 ${game.locked ? 'bg-black/40!' : ''}`}
+            title={game.locked ? 'Odomknúť hru – nové tímy sa budú môcť pripojiť' : 'Zamknúť hru – nové tímy sa nepripoja'}
+            aria-label={game.locked ? 'Odomknúť hru' : 'Zamknúť hru'}
+            aria-pressed={game.locked}
+          >
+            {game.locked ? <Lock className="size-5" /> : <LockOpen className="size-5" />}
+          </button>
+        )}
         <MuteButton />
         {fs.supported && (
           <button

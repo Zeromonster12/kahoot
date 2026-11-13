@@ -67,6 +67,10 @@ try {
   step('spustenie hry')
   gameId = await rpc(host, 'create_game', { p_quiz_id: quizId })
   const { data: game } = await host.from('games').select('*').eq('id', gameId).single()
+  assert.equal(game.pin, undefined, 'PIN nesmie byť vo verejnej tabuľke games')
+  const { data: pinRow, error: pe } = await host.from('game_pins').select('pin').eq('game_id', gameId).single()
+  if (pe) throw pe
+  game.pin = pinRow.pin
 
   const hostAnswers = []
   const hostChannel = host
@@ -92,6 +96,8 @@ try {
   assert.ok(!leakedTeams || leakedTeams.length === 0, 'anonym vidí tímy!')
   const { data: leakedQs } = await players[0].c.from('game_questions').select('*')
   assert.ok(!leakedQs || leakedQs.length === 0, 'anonym vidí správne odpovede!')
+  const { data: leakedPins } = await players[0].c.from('game_pins').select('*')
+  assert.ok(!leakedPins || leakedPins.length === 0, 'anonym vidí PIN-y hier!')
 
   step('otázka 1: preview → realtime k tímom bez správnej odpovede')
   await rpc(host, 'host_show_question', { p_game_id: gameId, p_index: 0 })
