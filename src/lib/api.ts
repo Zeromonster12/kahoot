@@ -84,6 +84,19 @@ export function getTeamState(teamId: string, token: string) {
   return rpc<TeamState>('team_state', { p_team_id: teamId, p_token: token })
 }
 
+/**
+ * Posunie hru, ak už uplynul čas (otvorenie odpovedí po úvode, vyhodnotenie po konci času).
+ * Volajú ho mobily hráčov – hra tak nezamrzne, keď projektor (karta učiteľa) nebeží.
+ */
+export function advanceGame(gameId: string) {
+  return rpc<void>('advance_game', { p_game_id: gameId })
+}
+
+/** Tím odíde z rozohranej hry (zmaže sa); s rovnakým názvom sa môže vrátiť. */
+export function leaveGame(teamId: string, token: string) {
+  return rpc<void>('leave_game', { p_team_id: teamId, p_token: token })
+}
+
 export function getLeaderboard(gameId: string) {
   return rpc<LeaderboardEntry[]>('get_leaderboard', { p_game_id: gameId })
 }

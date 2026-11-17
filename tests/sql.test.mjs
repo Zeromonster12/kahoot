@@ -169,10 +169,10 @@ await test('hostovské akcie nemôže volať anonym ani cudzí používateľ', a
 
 await test('preview: otázka je verejná, ale bez správnej odpovede; odpovedať sa ešte nedá', async () => {
   await as(ADMIN, `select host_show_question($1, 0)`, [gameId])
-  const [g] = await as(ANON, `select status, locked, question from games where id = $1`, [gameId])
+  const [g] = await as(ANON, `select status, locked, preview_ends_at, question from games where id = $1`, [gameId])
   assert.equal(g.status, 'preview')
-  assert.equal(g.locked, true, 'prvou otázkou sa hra sama zamkne')
-  await rejects(as(ANON, `select join_game($1, $2)`, [pin, 'Neskorý tím']), /game_locked/)
+  assert.equal(g.locked, false, 'hra sa sama nezamyká – neskoro prišlí žiaci sa môžu pripojiť')
+  assert.ok(g.preview_ends_at, 'termín otvorenia odpovedí je na serveri')
   assert.equal(g.question.text, 'Hlavné mesto SR?')
   assert.equal(g.question.correct, undefined)
   assert.equal(g.question.explanation, undefined, 'vysvetlenie by prezradilo odpoveď')
@@ -318,6 +318,64 @@ await test('strop 200 tímov na hru', async () => {
   await as(ANON, `select join_game($1, $2)`, [pin2, 'Dvojstý tím'])
   await rejects(as(ANON, `select join_game($1, $2)`, [pin2, 'Navyše']), /game_full/)
   await as(ADMIN, `select host_finish($1)`, [game2])
+})
+
+// ---------------------------------------------------------------------------
+// Hra bez projektora a odchod tímu (0006, samostatná hra)
+
+let game3, pin3, t3a, t3b
+await test('advance_game: hra pokračuje bez projektora, ale nič neurýchli', async () => {
+  ;[{ create_game: game3 }] = await as(ADMIN, `select create_game($1)`, [quizId])
+  ;[{ pin: pin3 }] = await as(ADMIN, `select pin from game_pins where game_id = $1`, [game3])
+  ;[{ join_game: t3a }] = await as(ANON, `select join_game($1, $2)`, [pin3, 'Prví'])
+  ;[{ join_game: t3b }] = await as(ANON, `select join_game($1, $2)`, [pin3, 'Druhí'])
+  const status = async () => (await as(ANON, `select status from games where id = $1`, [game3]))[0].status
+
+  await as(ANON, `select advance_game($1)`, [game3])
+  assert.equal(await status(), 'lobby', 'lobby posúva len učiteľ')
+  await as(ADMIN, `select host_show_question($1, 0)`, [game3])
+  await as(ANON, `select advance_game($1)`, [game3])
+  assert.equal(await status(), 'preview', 'pred koncom úvodu sa nič nestane')
+
+  await db.query(`update games set preview_ends_at = now() - interval '1 second' where id = $1`, [game3])
+  await as(ANON, `select advance_game($1)`, [game3])
+  assert.equal(await status(), 'question', 'po úvode sa odpovedanie otvorí aj bez projektora')
+
+  await as(ANON, `select submit_answer($1, $2, 1)`, [t3a.team_id, t3a.token])
+  await as(ANON, `select advance_game($1)`, [game3])
+  assert.equal(await status(), 'question', 'pred koncom času sa nevyhodnocuje (ani keď všetci neodpovedali)')
+  await db.query(`update games set ends_at = now() - interval '0.5 second' where id = $1`, [game3])
+  await as(ANON, `select advance_game($1)`, [game3])
+  assert.equal(await status(), 'question', 'počas 1 s rezervy pre neskoré odpovede sa ešte nevyhodnocuje')
+
+  await db.query(`update games set ends_at = now() - interval '2 seconds' where id = $1`, [game3])
+  await as(ANON, `select advance_game($1)`, [game3])
+  await as(ANON, `select advance_game($1)`, [game3]) // opakované volanie body nepripočíta znova
+  const [g] = await as(ANON, `select status, question from games where id = $1`, [game3])
+  assert.equal(g.status, 'reveal')
+  assert.equal(g.question.correct, 1)
+  const [{ team_state: s }] = await as(ANON, `select team_state($1, $2)`, [t3a.team_id, t3a.token])
+  assert.equal(s.score, s.answer.points)
+  assert.ok(s.score > 0)
+
+  await as(ANON, `select advance_game($1)`, [game3])
+  assert.equal(await status(), 'reveal', 'po vyhodnotení pokračuje len učiteľ')
+  await rejects(as(ANON, `select internal_reveal($1)`, [game3]), /permission denied/)
+  await rejects(as(ANON, `select internal_open_answers($1)`, [game3]), /permission denied/)
+  await rejects(as(ANON, `select advance_game($1)`, ['00000000-0000-0000-0000-000000000000']), /game_not_found/)
+})
+
+await test('leave_game: tím odíde, s rovnakým názvom sa môže vrátiť; po konci hry ostáva vo výsledkoch', async () => {
+  await rejects(as(ANON, `select leave_game($1, $2)`, [t3b.team_id, t3a.token]), /team_not_found/)
+  await as(ANON, `select leave_game($1, $2)`, [t3b.team_id, t3b.token])
+  await rejects(as(ANON, `select team_state($1, $2)`, [t3b.team_id, t3b.token]), /team_not_found/)
+  const [{ join_game: back }] = await as(ANON, `select join_game($1, $2)`, [pin3, 'Druhí'])
+  assert.equal(back.name, 'Druhí')
+
+  await as(ADMIN, `select host_finish($1)`, [game3])
+  await as(ANON, `select leave_game($1, $2)`, [t3a.team_id, t3a.token])
+  const [{ get_leaderboard: lb }] = await as(ANON, `select get_leaderboard($1)`, [game3])
+  assert.ok(lb.some((t) => t.name === 'Prví'), 'po konci hry sa tím z výsledkov nezmaže')
 })
 
 // ---------------------------------------------------------------------------

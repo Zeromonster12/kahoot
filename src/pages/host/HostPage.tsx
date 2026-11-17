@@ -55,7 +55,9 @@ function HostGame({ gameId }: { gameId: string }) {
   const idx = game?.question_index ?? -1
   const key = game ? stateKey(game) : ''
 
-  const { teams, refetch: refetchTeams, kick } = useTeams(gameId, status === 'lobby')
+  // počas otázky sa tímy tiež dopytujú – odchod/vyhodenie tímu musí hneď znížiť počet,
+  // na ktorý čaká automatické vyhodnotenie „odpovedali všetci“
+  const { teams, refetch: refetchTeams, kick } = useTeams(gameId, status === 'lobby' || status === 'question')
   const answers = useAnswers(gameId, idx, status === 'question')
   const { run, isBusy, toast, notify, dismiss } = useHostActions(gameId, reload)
   const fullscreen = useFullscreen()

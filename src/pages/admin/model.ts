@@ -38,7 +38,8 @@ export function newQuestion(prev?: Pick<DraftQuestion, 'category' | 'time_limit'
     text: '',
     image_url: null,
     answers: ['', '', '', ''],
-    correct: 0,
+    // žiadna predvolená správna odpoveď – učiteľ ju musí označiť (inak validácia nepustí uložiť)
+    correct: -1,
     time_limit: prev?.time_limit ?? DEFAULT_TIME,
     points: DEFAULT_POINTS,
     explanation: '',
@@ -123,11 +124,14 @@ export function validateQuestion(q: DraftQuestion): QuestionIssues | null {
   return { text: textIssue, answers: answerIssues, summary }
 }
 
-/** Odstráni odpoveď na indexe a posunie ostatné (bez medzier), upraví správnu odpoveď. */
+/**
+ * Odstráni odpoveď na indexe a posunie ostatné (bez medzier), upraví správnu odpoveď.
+ * Pri zmazaní správnej odpovede sa označenie zruší (-1) – nikdy sa potichu nepresunie na inú.
+ */
 export function removeAnswer(q: DraftQuestion, index: number): DraftQuestion {
   if (q.answers.length <= MIN_ANSWERS) return q
   const answers = q.answers.filter((_, i) => i !== index)
-  const correct = q.correct === index ? 0 : q.correct > index ? q.correct - 1 : q.correct
+  const correct = q.correct === index ? -1 : q.correct > index ? q.correct - 1 : q.correct
   return { ...q, answers, correct }
 }
 

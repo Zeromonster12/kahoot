@@ -3,7 +3,7 @@
 Školská kvízová hra v štýle Kahoot. Učiteľ premieta otázky na projektor, tímy odpovedajú na mobiloch/tabletoch, body sa počítajú za správnosť aj rýchlosť a na konci sa vyhlasujú stupne víťazov (top 3).
 
 - **Administrácia** – tvorba kvízov v editore, obrázky k otázkam, kategórie, import/export z Excelu
-- **Tímy** – pripoja sa cez PIN alebo QR kód, zvolia si názov tímu (jedno zariadenie = jeden tím). Prvou otázkou sa hra sama zamkne (nové tímy sa nepripoja); učiteľ ju môže odomknúť tlačidlom so zámkom a tímy vyhodiť aj počas hry.
+- **Tímy** – pripoja sa cez PIN alebo QR kód, zvolia si názov tímu (jedno zariadenie = jeden tím). Neskoro prišlé tímy sa môžu pripojiť aj počas hry; učiteľ môže hru tlačidlom so zámkom zamknúť pre nové tímy a tímy vyhodiť kedykoľvek počas hry. Ak karta projektora spadne, hra sa po uplynutí času posunie sama (odpočet a vyhodnotenie), ďalej pokračuje po jej opätovnom otvorení.
 - **Hra** – časový limit na otázku, 2–4 odpovede, vysvetlenie po odhalení odpovede, priebežné poradie, finálne pódium s konfetami, export výsledkov do CSV
 
 ## Ako to funguje

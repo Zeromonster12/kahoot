@@ -11,7 +11,7 @@ import { useWakeLock } from '../../lib/useWakeLock'
 import { GameBackground } from '../../components/GameBackground'
 import { PlayHeader } from './PlayHeader'
 import { useTeamState } from './useTeamState'
-import { useIsPast } from './hooks'
+import { useAutoAdvance, useIsPast } from './hooks'
 import { ANSWER_BG_OVERRIDE, ScreenLoading } from './ui'
 import { LobbyScreen } from './screens/LobbyScreen'
 import { PreviewScreen } from './screens/PreviewScreen'
@@ -51,7 +51,9 @@ export function PlayPage() {
 
 function PlayGame({ session }: { session: TeamSession }) {
   const navigate = useNavigate()
-  const { game, error: connectionError } = useGame(session.gameId)
+  const { game, error: connectionError, reload: reloadGame } = useGame(session.gameId)
+  // hra pokračuje aj vtedy, keď projektor nebeží (spadnutá alebo zatvorená karta učiteľa)
+  useAutoAdvance(game, reloadGame)
   const team = useTeamState(session, game)
   const { refresh } = team
   const [submission, setSubmission] = useState<Submission | null>(null)

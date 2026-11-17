@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router'
 import { AnimatePresence, MotionConfig, motion, useAnimate } from 'motion/react'
 import { ArrowLeft, Dices, Play } from 'lucide-react'
-import { ApiError, findGameByPin, getGame, joinGame } from '../../lib/api'
+import { ApiError, findGameByPin, getGame, joinGame, leaveGame } from '../../lib/api'
 import { clearTeamSession, loadTeamSession, saveTeamSession, type TeamSession } from '../../lib/session'
 import type { FoundGame } from '../../lib/types'
 import { Button } from '../../components/Button'
@@ -31,6 +31,10 @@ export function JoinPage() {
   const [joining, setJoining] = useState(false)
   const [rolls, setRolls] = useState(0)
   const [resume, setResume] = useState<TeamSession | null>(null)
+  /** „Odísť z hry“ je dvojkrokové – prvé ťuknutie len pýta potvrdenie */
+  const [leaveArmed, setLeaveArmed] = useState(false)
+  const [leaving, setLeaving] = useState(false)
+  const [leaveError, setLeaveError] = useState<string | null>(null)
 
   const shake = useCallback(() => {
     if (scope.current) void animate(scope.current, { x: [0, -14, 14, -10, 10, -5, 5, 0] }, { duration: 0.45 })
@@ -101,9 +105,30 @@ export function JoinPage() {
     }
   }, [])
 
-  const leaveSaved = () => {
+  // Odchod tím naozaj odstráni zo servera – inak by v hre ostal, „odpovedali všetci“
+  // by nikdy nenastalo a každá otázka by bežala celý čas.
+  const leaveSaved = async () => {
+    if (!resume || leaving) return
+    if (!leaveArmed) {
+      setLeaveArmed(true)
+      return
+    }
+    setLeaving(true)
+    setLeaveError(null)
+    try {
+      await leaveGame(resume.teamId, resume.token)
+    } catch (e) {
+      // tím už v hre nie je (vyhodený, hra zmazaná) = odchod je hotový
+      if (!(e instanceof ApiError && e.code === 'team_not_found')) {
+        setLeaveError(e instanceof Error ? e.message : 'Odchod sa nepodaril. Skúste znova.')
+        setLeaving(false)
+        return
+      }
+    }
     clearTeamSession()
     setResume(null)
+    setLeaving(false)
+    setLeaveArmed(false)
   }
 
   const submitPin = (e: FormEvent) => {
@@ -135,6 +160,8 @@ export function JoinPage() {
     setJoining(true)
     setNameError(null)
     try {
+      // pôvodný tím z rozohranej hry by inak ostal v hre a brzdil „odpovedali všetci“
+      if (resume) await leaveGame(resume.teamId, resume.token).catch(() => undefined)
       const r = await joinGame(pin, clean)
       saveTeamSession({ gameId: r.game_id, teamId: r.team_id, token: r.token, name: r.name, pin })
       navigate('/play')
@@ -189,11 +216,19 @@ export function JoinPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={leaveSaved}
-                    className="w-full touch-manipulation py-1 text-sm font-bold text-gray-500 hover:text-ink"
+                    onClick={() => void leaveSaved()}
+                    disabled={leaving}
+                    className={`w-full touch-manipulation py-1 text-sm font-bold disabled:opacity-60 ${
+                      leaveArmed ? 'rounded-md bg-ans-red text-white' : 'text-gray-500 hover:text-ink'
+                    }`}
                   >
-                    Odísť z hry
+                    {leaving ? 'Odchádzam…' : leaveArmed ? 'Naozaj odísť? Tím sa z hry odstráni' : 'Odísť z hry'}
                   </button>
+                  {leaveError && (
+                    <p role="alert" className="text-center text-xs font-bold text-ans-red">
+                      {leaveError}
+                    </p>
+                  )}
                 </div>
               </motion.div>
             )}
@@ -228,7 +263,8 @@ export function JoinPage() {
                     autoCorrect="off"
                     spellCheck={false}
                     enterKeyHint="go"
-                    maxLength={6}
+                    // bez maxLength: vložené „603 671“ (tak ho ukazuje projektor) by sa orezalo
+                    // ešte pred odstránením medzery; na 6 číslic ho skráti onChange
                     placeholder="PIN hry"
                     aria-invalid={pinError ? true : undefined}
                     aria-describedby={pinError ? 'pin-error' : undefined}

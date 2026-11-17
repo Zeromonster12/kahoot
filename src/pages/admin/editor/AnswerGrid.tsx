@@ -139,10 +139,17 @@ export function AnswerGrid({ answers, correct, errors, onChangeAnswer, onSetCorr
           </button>
         )}
       </div>
-      <p className="mt-3 text-center text-sm text-gray-500">
-        Klikni na krúžok <span className="inline-flex size-4 translate-y-0.5 rounded-full border-2 border-gray-400" aria-hidden />{' '}
-        pri správnej odpovedi. Odpovede C a D sú nepovinné.
-      </p>
+      {errors && (correct < 0 || correct >= answers.length) ? (
+        <p role="alert" className="mt-3 text-center text-sm font-bold text-ans-red">
+          Označ správnu odpoveď – klikni na krúžok{' '}
+          <span className="inline-flex size-4 translate-y-0.5 rounded-full border-2 border-ans-red" aria-hidden /> pri nej.
+        </p>
+      ) : (
+        <p className="mt-3 text-center text-sm text-gray-500">
+          Klikni na krúžok <span className="inline-flex size-4 translate-y-0.5 rounded-full border-2 border-gray-400" aria-hidden />{' '}
+          pri správnej odpovedi. Odpovede C a D sú nepovinné.
+        </p>
+      )}
     </div>
   )
 }

@@ -449,7 +449,7 @@ function questionRow(q: QuestionData): (string | number)[] {
     q.answers[1] ?? '',
     q.answers[2] ?? '',
     q.answers[3] ?? '',
-    LETTERS[q.correct] ?? 'A',
+    LETTERS[q.correct] ?? '', // neoznačená správna odpoveď sa nesmie exportovať ako A
     q.time_limit,
     pointsCell(q.points),
     q.image_url ?? '',

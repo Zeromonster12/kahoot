@@ -76,6 +76,9 @@ export function useTeams(gameId: string, poll: boolean) {
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'teams', filter }, (payload) =>
         upsert(toTeam(payload.new as Team)),
       )
+      // DELETE sa nedá filtrovať podľa hry – pri akomkoľvek odchode/vyhodení tímu načítaj znova
+      // (inak by počítadlo „odpovedali všetci“ čakalo na tím, ktorý už v hre nie je)
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'teams' }, () => void refetch())
       .subscribe((status) => {
         if (status === 'SUBSCRIBED') refetch()
       })

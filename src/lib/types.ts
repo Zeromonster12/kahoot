@@ -64,6 +64,8 @@ export interface Game {
   question_index: number
   question_count: number
   question: PublicQuestion | null
+  /** ISO čas, kedy sa v stave 'preview' má otvoriť odpovedanie */
+  preview_ends_at: string | null
   /** ISO čas, kedy sa otvorilo odpovedanie (stav 'question') */
   started_at: string | null
   /** ISO čas, kedy odpovedanie končí */
