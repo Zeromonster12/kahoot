@@ -14,18 +14,19 @@ export interface QuizSummary extends Quiz {
 }
 
 interface QuizListRow extends Quiz {
-  questions: { category: string; image_url: string | null; position: number }[] | null
+  questions: { kind: string | null; category: string; image_url: string | null; position: number }[] | null
 }
 
 export async function listQuizzes(): Promise<QuizSummary[]> {
   const { data } = check(
     await supabase
       .from('quizzes')
-      .select('id, title, description, created_at, updated_at, questions(category, image_url, position)')
+      .select('id, title, description, created_at, updated_at, questions(kind, category, image_url, position)')
       .order('updated_at', { ascending: false }),
   )
   return ((data ?? []) as QuizListRow[]).map(({ questions, ...quiz }) => {
-    const qs = [...(questions ?? [])].sort((a, b) => a.position - b.position)
+    // počíta sa len s otázkami – snímky (informačné obrazovky) nie
+    const qs = [...(questions ?? [])].filter((q) => q.kind !== 'slide').sort((a, b) => a.position - b.position)
     const seen = new Map<string, string>()
     for (const q of qs) {
       const c = q.category?.trim()
@@ -116,7 +117,8 @@ export async function saveQuiz(
   }
 }
 
-export interface GameSummary extends Pick<Game, 'id' | 'quiz_id' | 'quiz_title' | 'status' | 'created_at' | 'finished_at' | 'question_count' | 'question_index'> {
+export interface GameSummary
+  extends Pick<Game, 'id' | 'quiz_id' | 'quiz_title' | 'status' | 'created_at' | 'finished_at' | 'question_count' | 'item_count' | 'question_index'> {
   /** PIN z neverejnej tabuľky game_pins */
   pin: string | null
   teamCount: number
@@ -126,7 +128,7 @@ export async function listRecentGames(limit = 15): Promise<GameSummary[]> {
   const { data } = check(
     await supabase
       .from('games')
-      .select('id, quiz_id, quiz_title, status, created_at, finished_at, question_count, question_index, teams(count), game_pins(pin)')
+      .select('id, quiz_id, quiz_title, status, created_at, finished_at, question_count, item_count, question_index, teams(count), game_pins(pin)')
       .order('created_at', { ascending: false })
       .limit(limit),
   )

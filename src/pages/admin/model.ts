@@ -1,4 +1,5 @@
-import type { PointsMode, Question } from '../../lib/types'
+import type { ItemKind, PointsMode, Question } from '../../lib/types'
+import { pluralQuestions } from '../../lib/theme'
 import { uuid } from './utils'
 
 export const MAX_TITLE = 120
@@ -12,9 +13,14 @@ export const MAX_ANSWERS = 4
 export const DEFAULT_TIME = 20
 export const DEFAULT_POINTS: PointsMode = 1000
 
-/** Otázka v editore (bez quiz_id a position – tie sa doplnia pri ukladaní). */
+/**
+ * Položka v editore (bez quiz_id a position – tie sa doplnia pri ukladaní).
+ * Otázka, alebo snímka: pri snímke je `text` nadpis, `explanation` text snímky,
+ * `image_url` obrázok; odpovede, čas a body sa nepoužívajú.
+ */
 export interface DraftQuestion {
   id: string
+  kind: ItemKind
   category: string
   text: string
   image_url: string | null
@@ -31,25 +37,46 @@ export interface DraftQuestion {
 /** Otázka bez id – výsledok importu z Excelu. */
 export type QuestionData = Omit<DraftQuestion, 'id'>
 
-export function newQuestion(prev?: Pick<DraftQuestion, 'category' | 'time_limit'>): DraftQuestion {
+export function newQuestion(prev?: Pick<DraftQuestion, 'category' | 'time_limit' | 'kind'>): DraftQuestion {
   return {
     id: uuid(),
+    kind: 'question',
     category: prev?.category ?? '',
     text: '',
     image_url: null,
     answers: ['', '', '', ''],
     // žiadna predvolená správna odpoveď – učiteľ ju musí označiť (inak validácia nepustí uložiť)
     correct: -1,
-    time_limit: prev?.time_limit ?? DEFAULT_TIME,
+    time_limit: prev?.kind === 'question' ? prev.time_limit : DEFAULT_TIME,
     points: DEFAULT_POINTS,
     explanation: '',
     explanation_image_url: null,
   }
 }
 
+/** Nová snímka – nadpis, text a obrázok; bez odpovedí a bodov. */
+export function newSlide(fields: Partial<Pick<DraftQuestion, 'category' | 'text' | 'explanation'>> = {}): DraftQuestion {
+  return {
+    id: uuid(),
+    kind: 'slide',
+    category: fields.category ?? '',
+    text: fields.text ?? '',
+    image_url: null,
+    answers: [],
+    correct: 0,
+    time_limit: DEFAULT_TIME,
+    points: 0,
+    explanation: fields.explanation ?? '',
+    explanation_image_url: null,
+  }
+}
+
+export const isSlide = (q: Pick<DraftQuestion, 'kind'>): boolean => q.kind === 'slide'
+
 export function fromQuestion(q: Question): DraftQuestion {
   return {
     id: q.id,
+    kind: q.kind === 'slide' ? 'slide' : 'question',
     category: q.category ?? '',
     text: q.text ?? '',
     image_url: q.image_url || null,
@@ -78,10 +105,29 @@ export function normalizeQuestion<T extends QuestionData>(q: T): T {
 /** Riadok tabuľky questions pripravený na insert/upsert. */
 export function toRow(q: QuestionData, quizId: string, position: number, id?: string) {
   const n = normalizeQuestion(q)
+  if (n.kind === 'slide') {
+    // snímka: bez odpovedí, času a bodov (databáza pri snímke odpovede nedovolí)
+    return {
+      ...(id ? { id } : {}),
+      quiz_id: quizId,
+      position,
+      kind: 'slide' as const,
+      category: n.category,
+      text: n.text,
+      image_url: n.image_url,
+      answers: [],
+      correct: 0,
+      time_limit: DEFAULT_TIME,
+      points: 0,
+      explanation: n.explanation,
+      explanation_image_url: null,
+    }
+  }
   return {
     ...(id ? { id } : {}),
     quiz_id: quizId,
     position,
+    kind: 'question' as const,
     category: n.category,
     text: n.text,
     image_url: n.image_url,
@@ -103,6 +149,12 @@ export interface QuestionIssues {
 }
 
 export function validateQuestion(q: DraftQuestion): QuestionIssues | null {
+  if (q.kind === 'slide') {
+    const title = q.text.trim()
+    if (title && title.length <= MAX_QUESTION) return null
+    const issue = title ? `Nadpis môže mať najviac ${MAX_QUESTION} znakov.` : 'Napíš nadpis snímky.'
+    return { text: issue, answers: [], summary: [title ? 'príliš dlhý nadpis' : 'chýba nadpis snímky'] }
+  }
   const text = q.text.trim()
   const textIssue = !text
     ? 'Napíš text otázky.'
@@ -157,6 +209,64 @@ export function snapshot(title: string, description: string, questions: DraftQue
     d: description.trim(),
     q: questions.map((q) => normalizeQuestion(q)),
   })
+}
+
+// ---------------------------------------------------------------------------
+// Zoradenie podľa kategórií
+
+export interface GroupOptions {
+  /** kategórie podľa abecedy (inak v poradí, v akom sa v kvíze prvýkrát objavia) */
+  alphabetical?: boolean
+  /** pred každú kategóriu pridať úvodnú snímku (ak ju ešte nemá) */
+  introSlides?: boolean
+}
+
+/**
+ * Zoskupí položky podľa kategórie. Poradie vnútri kategórie ostáva.
+ * Snímka s kategóriou patrí do svojej kategórie a ide na jej začiatok (úvod kategórie);
+ * snímka bez kategórie ostáva pred položkou, ktorá za ňou nasledovala.
+ * Otázky bez kategórie idú na koniec.
+ */
+export function groupByCategory(items: DraftQuestion[], opts: GroupOptions = {}): DraftQuestion[] {
+  const keyOf = (q: DraftQuestion) => q.category.trim().toLowerCase()
+  type Unit = { key: string; intro: boolean; items: DraftQuestion[] }
+  const units: Unit[] = []
+  let pending: DraftQuestion[] = []
+  for (const q of items) {
+    if (q.kind === 'slide' && !keyOf(q)) {
+      pending.push(q)
+      continue
+    }
+    units.push({ key: keyOf(q), intro: q.kind === 'slide', items: [...pending, q] })
+    pending = []
+  }
+
+  const groups = new Map<string, { name: string; intro: Unit[]; rest: Unit[] }>()
+  for (const u of units) {
+    let g = groups.get(u.key)
+    if (!g) {
+      const named = u.items.find((x) => keyOf(x) === u.key)
+      g = { name: named?.category.trim() ?? '', intro: [], rest: [] }
+      groups.set(u.key, g)
+    }
+    ;(u.intro ? g.intro : g.rest).push(u)
+  }
+
+  const keys = [...groups.keys()].filter((k) => k)
+  if (opts.alphabetical) keys.sort((a, b) => groups.get(a)!.name.localeCompare(groups.get(b)!.name, 'sk'))
+  if (groups.has('')) keys.push('')
+
+  const out: DraftQuestion[] = []
+  for (const k of keys) {
+    const g = groups.get(k)!
+    const questions = g.rest.flatMap((u) => u.items).filter((x) => x.kind === 'question').length
+    if (opts.introSlides && k && g.intro.length === 0 && questions > 0) {
+      out.push(newSlide({ category: g.name, text: g.name, explanation: pluralQuestions(questions) }))
+    }
+    for (const u of [...g.intro, ...g.rest]) out.push(...u.items)
+  }
+  out.push(...pending)
+  return out
 }
 
 /** Unikátne kategórie v poradí výskytu. */

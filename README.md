@@ -2,7 +2,7 @@
 
 Školská kvízová hra v štýle Kahoot. Učiteľ premieta otázky na projektor, tímy odpovedajú na mobiloch/tabletoch, body sa počítajú za správnosť aj rýchlosť a na konci sa vyhlasujú stupne víťazov (top 3).
 
-- **Administrácia** – tvorba kvízov v editore, obrázky k otázkam, kategórie, import/export z Excelu
+- **Administrácia** – tvorba kvízov v editore, obrázky k otázkam, kategórie, snímky (informačné obrazovky, napr. úvod kategórie), zoskupenie otázok podľa kategórií, import/export z Excelu
 - **Tímy** – pripoja sa cez PIN alebo QR kód, zvolia si názov tímu (jedno zariadenie = jeden tím). Neskoro prišlé tímy sa môžu pripojiť aj počas hry; učiteľ môže hru tlačidlom so zámkom zamknúť pre nové tímy a tímy vyhodiť kedykoľvek počas hry. Ak karta projektora spadne, hra sa po uplynutí času posunie sama (odpočet a vyhodnotenie), ďalej pokračuje po jej opätovnom otvorení.
 - **Hra** – časový limit na otázku, 2–4 odpovede, vysvetlenie po odhalení odpovede, priebežné poradie, finálne pódium s konfetami, export výsledkov do CSV
 
@@ -86,7 +86,13 @@ npm run dev               # http://localhost:5173
 2. Na projektore sa zobrazí **PIN** a **QR kód**. Tímy otvoria hlavnú stránku aplikácie (alebo naskenujú QR), zadajú PIN a názov tímu.
 3. Tímy sa objavujú na projektore (kliknutím na tím ho môžeš vyhodiť, napr. pri nevhodnom názve). Keď sú všetci, klikni **Spustiť**.
 4. Každá otázka: 5 s sa zobrazuje otázka (aj s obrázkom) → otvoria sa odpovede a beží čas → po vypršaní času (alebo keď odpovedia všetky tímy) sa odhalí správna odpoveď so štatistikou → ak má otázka vysvetlenie, tlačidlo **Vysvetlenie** otvorí samostatnú obrazovku s otázkou, vysvetlením (text a vlastný obrázok) a správnou odpoveďou → priebežné poradie.
-5. Po poslednej otázke **pódium top 3**, celé poradie a stiahnutie výsledkov do CSV (otvorí sa v Exceli).
+5. **Snímka** (ak ju kvíz má) sa ukáže na projektore aj na mobiloch bez časovača – ďalej sa ide tlačidlom **Ďalej**. Do číslovania otázok ani bodov sa neráta.
+6. Po poslednej otázke **pódium top 3**, celé poradie a stiahnutie výsledkov do CSV (otvorí sa v Exceli).
+
+### Snímky a zoradenie podľa kategórií
+
+- V editore **Pridať snímku** vloží za vybranú položku informačnú obrazovku: nadpis, nepovinný text (do 300 znakov), obrázok a kategóriu.
+- Tlačidlo so šípkami nad zoznamom otázok ich **zoskupí podľa kategórií** (v poradí, v akom sa kategória prvýkrát objaví, alebo podľa abecedy). Voľba **…a pridať úvodné snímky** pred každú kategóriu vloží snímku s jej názvom a počtom otázok. Snímka s kategóriou ide na začiatok svojej kategórie, snímka bez kategórie ostane pred položkou, ktorá za ňou nasledovala. Zmena sa prejaví až po uložení.
 
 Ovládanie projektora: **Medzerník / Enter / →** = ďalší krok, vpravo hore stlmenie zvuku a celá obrazovka. Ak sa stránka projektora obnoví alebo zatvorí, hra pokračuje tam, kde skončila – stačí ju znova otvoriť (aj zo zoznamu **Posledné hry** v administrácii). To isté platí pre mobily tímov.
 
@@ -110,6 +116,7 @@ V administrácii klikni **Stiahnuť šablónu**, vyplň ju a nahraj cez **Import
 - Odpovede C a D sú nepovinné, obrázok je nepovinný (verejná URL – alebo ho nahraj neskôr v editore).
 - **Vysvetlenie** je nepovinné (najviac 300 znakov) – na projektore má po odhalení správnej odpovede samostatnú obrazovku, na mobiloch tímov sa zobrazí pod výsledkom.
 - **Obrázok k vysvetleniu** je nepovinný (verejná URL alebo nahratie v editore) – ukáže sa na obrazovke vysvetlenia namiesto obrázka otázky. Vysvetlenie môže byť aj len obrázok bez textu.
+- Nepovinný stĺpec **Typ**: `otázka` (alebo prázdne) alebo `snímka`. Pri snímke je nadpis v stĺpci **Otázka**, text vo **Vysvetlenie** a obrázok v **Obrázok (URL)**; odpovede, čas a body sa nevypĺňajú. Súbory bez stĺpca Typ sa importujú ako otázky.
 - Podporované sú `.xlsx`, `.xls` aj `.csv` (UTF-8).
 
 ---

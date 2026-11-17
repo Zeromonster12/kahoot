@@ -7,6 +7,7 @@ import { GameBackground } from '../../components/GameBackground'
 import { FullScreenSpinner } from '../../components/Spinner'
 import { getGamePin, hostFinish, hostOpenAnswers, hostReveal, hostScoreboard, hostSetLocked, hostShowQuestion } from '../../lib/api'
 import { serverNow, syncClock } from '../../lib/clock'
+import { itemCount } from '../../lib/progress'
 import { PREVIEW_SECONDS } from '../../lib/theme'
 import { sound } from '../../lib/sound'
 import type { GameStatus, Team } from '../../lib/types'
@@ -29,6 +30,7 @@ import { PodiumScreen } from './screens/PodiumScreen'
 import { PreviewScreen } from './screens/PreviewScreen'
 import { QuestionScreen } from './screens/QuestionScreen'
 import { ScoreboardScreen } from './screens/ScoreboardScreen'
+import { SlideScreen } from './screens/SlideScreen'
 import { errorMessage, hasExplanation, stateKey } from './utils'
 
 /** Rezerva po konci času – server prijíma odpovede ešte 1 s po ends_at. */
@@ -145,18 +147,18 @@ function HostGame({ gameId }: { gameId: string }) {
   const explaining = status === 'reveal' && explainable && explainedKey === key
 
   const nextKey = `${key}:next`
-  const questionCount = game?.question_count ?? 0
+  // navigácia ide po položkách (otázky aj snímky)
+  const items = game ? itemCount(game) : 0
   const next = useCallback(() => {
+    const last = idx >= items - 1
     if (status === 'reveal' && explainable && !explaining) {
       setExplainedKey(key)
     } else if (status === 'reveal') {
-      const last = idx >= questionCount - 1
       run(nextKey, () => (last ? hostFinish(gameId) : hostScoreboard(gameId)), { expect: key })
-    } else if (status === 'scoreboard') {
-      const last = idx + 1 >= questionCount
+    } else if (status === 'scoreboard' || status === 'slide') {
       run(nextKey, () => (last ? hostFinish(gameId) : hostShowQuestion(gameId, idx + 1)), { expect: key })
     }
-  }, [status, explainable, explaining, idx, questionCount, run, nextKey, key, gameId])
+  }, [status, explainable, explaining, idx, items, run, nextKey, key, gameId])
 
   const endGame = useCallback(() => {
     setConfirmEnd(false)
@@ -185,7 +187,13 @@ function HostGame({ gameId }: { gameId: string }) {
   }
 
   const primary =
-    status === 'lobby' ? (teamCount > 0 ? start : null) : status === 'reveal' || status === 'scoreboard' ? next : null
+    status === 'lobby'
+      ? teamCount > 0
+        ? start
+        : null
+      : status === 'reveal' || status === 'scoreboard' || status === 'slide'
+        ? next
+        : null
   useHostKeys({ primary, fullscreen: fullscreen.toggle })
 
   // --- vykreslenie ---------------------------------------------------------
@@ -221,6 +229,10 @@ function HostGame({ gameId }: { gameId: string }) {
     case 'lobby':
       screenKey = 'lobby'
       screen = <LobbyScreen game={game} pin={pin} teams={teams} starting={isBusy(startKey)} onStart={start} onKick={kickTeam} />
+      break
+    case 'slide':
+      screenKey = `slide:${idx}`
+      screen = <SlideScreen game={game} busy={isBusy(nextKey)} onNext={next} />
       break
     case 'preview':
       screenKey = `preview:${idx}`

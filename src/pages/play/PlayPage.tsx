@@ -22,6 +22,8 @@ import { RevealScreen, revealResult } from './screens/RevealScreen'
 import { ScoreboardScreen } from './screens/ScoreboardScreen'
 import { FinishedScreen } from './screens/FinishedScreen'
 import { MessageScreen } from './screens/MessageScreen'
+import { SlideScreen } from './screens/SlideScreen'
+import { questionProgress } from '../../lib/progress'
 
 type Tone = 'brand' | 'correct' | 'wrong' | 'neutral'
 
@@ -145,8 +147,10 @@ function PlayGame({ session }: { session: TeamSession }) {
     const idx = game.question_index
     const q = game.question
     viewKey = `${game.status}:${idx}`
+    // číslovanie ráta len otázky (snímky nie)
+    const progress = questionProgress(game)
     if ((game.status === 'preview' || game.status === 'question' || game.status === 'reveal') && idx >= 0) {
-      counter = `${idx + 1} / ${game.question_count}`
+      counter = `${progress.number} / ${progress.total}`
     }
 
     switch (game.status) {
@@ -154,8 +158,12 @@ function PlayGame({ session }: { session: TeamSession }) {
         content = <LobbyScreen teamName={state?.name ?? session.name} quizTitle={game.quiz_title} />
         break
 
+      case 'slide':
+        if (q) content = <SlideScreen slide={q} />
+        break
+
       case 'preview':
-        if (q) content = <PreviewScreen question={q} index={idx} count={game.question_count} />
+        if (q) content = <PreviewScreen question={q} index={progress.number - 1} count={progress.total} />
         break
 
       case 'question': {
@@ -215,7 +223,7 @@ function PlayGame({ session }: { session: TeamSession }) {
               gameId={game.id}
               teamId={session.teamId}
               questionIndex={idx}
-              questionsLeft={game.question_count - idx - 1}
+              questionsLeft={progress.total - progress.number}
               state={state}
             />
           )

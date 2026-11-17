@@ -69,7 +69,8 @@ export function useGame(gameId: string | null | undefined) {
   return { game, error, reload }
 }
 
-const STATUS_ORDER = { lobby: 0, preview: 1, question: 2, reveal: 3, scoreboard: 4, finished: 5 } as const
+// v rámci jednej položky; snímka má len stav 'slide'
+const STATUS_ORDER = { lobby: 0, slide: 1, preview: 1, question: 2, reveal: 3, scoreboard: 4, finished: 5 } as const
 
 function isOlder(a: Game, b: Game): boolean {
   if (b.status === 'finished') return a.status !== 'finished'

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
 import { ChevronRight, Lightbulb, Trophy } from 'lucide-react'
 import { Button } from '../../../components/Button'
+import { isLastItem } from '../../../lib/progress'
 import { sound } from '../../../lib/sound'
 import type { Game } from '../../../lib/types'
 import { AnswerTiles } from '../components/AnswerTiles'
@@ -19,7 +20,7 @@ interface Props {
  */
 export function ExplanationScreen({ game, busy, onNext }: Props) {
   const q = game.question
-  const isLast = game.question_index >= game.question_count - 1
+  const isLast = isLastItem(game)
   const [imageFailed, setImageFailed] = useState(false)
 
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { Lock, LockOpen, Maximize, Minimize, Power, Smartphone, Tag, Users } from 'lucide-react'
 import { Logo } from '../../../components/Logo'
 import { MuteButton } from '../../../components/MuteButton'
+import { questionProgress } from '../../../lib/progress'
 import { categoryColor } from '../../../lib/theme'
 import type { Game } from '../../../lib/types'
 import { useFullscreen } from '../hooks/useFullscreen'
@@ -39,7 +40,7 @@ export function HostHeader({ game, pin, onEnd, ending, onToggleLock, locking, on
       <div className="flex min-w-0 flex-1 items-center justify-center gap-3 overflow-hidden">
         {showProgress && (
           <span className="shrink-0 rounded-full bg-black/25 px-5 py-1.5 text-[1.5rem] font-extrabold tabular-nums">
-            Otázka {game.question_index + 1} / {game.question_count}
+            Otázka {questionProgress(game).number} / {questionProgress(game).total}
           </span>
         )}
         {showQuestionInfo && category && (

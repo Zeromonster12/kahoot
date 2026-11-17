@@ -1,4 +1,8 @@
-export type GameStatus = 'lobby' | 'preview' | 'question' | 'reveal' | 'scoreboard' | 'finished'
+/** 'slide' = informačná snímka medzi otázkami (bez odpovedí, učiteľ pokračuje ručne) */
+export type GameStatus = 'lobby' | 'slide' | 'preview' | 'question' | 'reveal' | 'scoreboard' | 'finished'
+
+/** Položka kvízu: otázka, alebo snímka (nadpis + text + obrázok, bez odpovedí a bodov). */
+export type ItemKind = 'question' | 'slide'
 
 export type PointsMode = 0 | 1000 | 2000
 
@@ -7,6 +11,8 @@ export interface Question {
   id: string
   quiz_id: string
   position: number
+  /** otázka alebo snímka; pri snímke je text = nadpis, explanation = text snímky */
+  kind: ItemKind
   category: string
   text: string
   image_url: string | null
@@ -36,6 +42,14 @@ export interface Quiz {
  */
 export interface PublicQuestion {
   idx: number
+  /** chýba v hrách spustených pred zavedením snímok = 'question' */
+  kind?: ItemKind
+  /** poradie otázky bez snímok (1 = prvá otázka); pri snímke chýba */
+  number?: number
+  /** počet otázok v hre (bez snímok) */
+  total?: number
+  /** text snímky */
+  body?: string
   category: string
   text: string
   image_url: string | null
@@ -60,9 +74,12 @@ export interface Game {
   status: GameStatus
   /** zamknutá hra neprijíma nové tímy (PIN je v neverejnej tabuľke game_pins) */
   locked: boolean
-  /** -1 v lobby */
+  /** index aktuálnej položky (otázky alebo snímky); -1 v lobby */
   question_index: number
+  /** počet otázok (bez snímok) */
   question_count: number
+  /** počet položiek vrátane snímok; null v hrách spustených pred zavedením snímok (= question_count) */
+  item_count: number | null
   question: PublicQuestion | null
   /** ISO čas, kedy sa v stave 'preview' má otvoriť odpovedanie */
   preview_ends_at: string | null

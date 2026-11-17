@@ -20,9 +20,12 @@ import { QuestionSettings } from './editor/QuestionSettings'
 import { ACCEPTED_FILES, downloadTemplate, exportQuizToXlsx, parseQuestionsFile, type ParseResult } from './excel'
 import {
   fromQuestion,
+  groupByCategory,
   isBlank,
   newQuestion,
+  newSlide,
   snapshot,
+  type GroupOptions,
   uniqueCategories,
   validateQuestion,
   type DraftQuestion,
@@ -64,8 +67,10 @@ export default function QuizEditorPage() {
   const fileRef = useRef<HTMLInputElement>(null)
   const titleRef = useRef<HTMLInputElement>(null)
   const questionsRef = useRef(questions)
+  const selectedIdRef = useRef(selectedId)
   useLayoutEffect(() => {
     questionsRef.current = questions
+    selectedIdRef.current = selectedId
   })
 
   // ---------------------------------------------------------------- načítanie
@@ -154,6 +159,35 @@ export default function QuizEditorPage() {
     setFocusId(q.id)
   }, [])
 
+  // snímka sa vloží za práve vybranú položku (napr. úvod pred ďalšiu kategóriu sa potom len posunie)
+  const addSlide = useCallback(() => {
+    const slide = newSlide()
+    setQuestions((prev) => {
+      const i = prev.findIndex((q) => q.id === selectedIdRef.current)
+      if (i < 0) return [...prev, slide]
+      const next = [...prev]
+      next.splice(i + 1, 0, slide)
+      return next
+    })
+    setSelectedId(slide.id)
+    setFocusId(slide.id)
+  }, [])
+
+  const sortByCategory = useCallback((opts: GroupOptions) => {
+    const before = questionsRef.current
+    const after = groupByCategory(before, opts)
+    const added = after.length - before.length
+    const moved = added > 0 || after.some((q, i) => q.id !== before[i]?.id)
+    if (!moved) {
+      toast.info('Položky už sú zoskupené podľa kategórií.')
+      return
+    }
+    setQuestions(after)
+    toast.success(
+      `Zoskupené podľa kategórií${added > 0 ? ` a pridané úvodné snímky: ${added}` : ''}. Ak sa ti poradie nepáči, kvíz neukladaj – zmeny zahodíš tlačidlom „Moje kvízy“.`,
+    )
+  }, [])
+
   const duplicateQuestion = useCallback((id: string) => {
     const source = questionsRef.current.find((q) => q.id === id)
     if (!source) return
@@ -175,15 +209,20 @@ export default function QuizEditorPage() {
       if (i < 0) return
       if (!isBlank(qs[i])) {
         const text = qs[i].text.trim()
+        const slide = qs[i].kind === 'slide'
         const ok = await confirm({
-          title: `Zmazať otázku ${i + 1}?`,
+          title: slide ? `Zmazať snímku ${i + 1}?` : `Zmazať otázku ${i + 1}?`,
           message: (
             <>
-              {text ? <>Otázka „{text.length > 80 ? `${text.slice(0, 80)}…` : text}“ sa odstráni z kvízu. </> : null}
+              {text ? (
+                <>
+                  {slide ? 'Snímka' : 'Otázka'} „{text.length > 80 ? `${text.slice(0, 80)}…` : text}“ sa odstráni z kvízu.{' '}
+                </>
+              ) : null}
               Zmena sa natrvalo prejaví po uložení kvízu.
             </>
           ),
-          confirmLabel: 'Zmazať otázku',
+          confirmLabel: slide ? 'Zmazať snímku' : 'Zmazať otázku',
           danger: true,
         })
         if (!ok) return
@@ -212,8 +251,9 @@ export default function QuizEditorPage() {
       const parts: string[] = []
       if (titleMissing) parts.push('chýba názov kvízu')
       if (issues.size) {
-        const numbers = questions.flatMap((q, i) => (issues.has(q.id) ? [i + 1] : []))
-        parts.push(`${numbers.length === 1 ? 'neúplná otázka' : 'neúplné otázky'} ${numbers.join(', ')}`)
+        const bad = questions.flatMap((q, i) => (issues.has(q.id) ? [{ n: i + 1, slide: q.kind === 'slide' }] : []))
+        const what = bad.some((b) => b.slide) ? (bad.length === 1 ? 'neúplná položka' : 'neúplné položky') : bad.length === 1 ? 'neúplná otázka' : 'neúplné otázky'
+        parts.push(`${what} ${bad.map((b) => b.n).join(', ')}`)
       }
       toast.error(`Kvíz sa nedá uložiť – ${parts.join(' a ')}.`)
       return false
@@ -280,9 +320,11 @@ export default function QuizEditorPage() {
     } else setLeaveOpen(false)
   }
 
+  const hasQuestion = questions.some((q) => q.kind === 'question')
+
   async function startGame() {
-    if (!questions.length) {
-      toast.info('Najprv pridaj aspoň jednu otázku.')
+    if (!hasQuestion) {
+      toast.info('Najprv pridaj aspoň jednu otázku – kvíz len so snímkami sa nedá hrať.')
       return
     }
     if (dirty && !(await save())) return
@@ -397,7 +439,7 @@ export default function QuizEditorPage() {
         description={description}
         saveState={saveState}
         starting={starting}
-        canStart={questions.length > 0}
+        canStart={hasQuestion}
         onTitle={setTitle}
         onBack={onBack}
         onSettings={() => setSettingsOpen(true)}
@@ -418,6 +460,8 @@ export default function QuizEditorPage() {
             onDuplicate={duplicateQuestion}
             onDelete={deleteQuestion}
             onAdd={addQuestion}
+            onAddSlide={addSlide}
+            onSort={sortByCategory}
             onImport={pickFile}
             onExport={onExport}
           />
@@ -451,8 +495,13 @@ export default function QuizEditorPage() {
                   key={selected.id}
                   quizId={quizId}
                   question={selected}
-                  index={selectedIndex}
-                  count={questions.length}
+                  // otázky sa číslujú bez snímok, snímka ukazuje poradie medzi všetkými položkami
+                  index={
+                    selected.kind === 'slide'
+                      ? selectedIndex
+                      : questions.filter((q) => q.kind === 'question').findIndex((q) => q.id === selected.id)
+                  }
+                  count={selected.kind === 'slide' ? questions.length : questions.filter((q) => q.kind === 'question').length}
                   categories={categories}
                   issues={showErrors ? (issues.get(selected.id) ?? null) : null}
                   autoFocus={focusId === selected.id}
@@ -461,6 +510,7 @@ export default function QuizEditorPage() {
               </div>
               <aside className="rounded-2xl border border-gray-200 bg-white p-5 xl:sticky xl:top-22 xl:w-72 xl:shrink-0">
                 <QuestionSettings
+                  slide={selected.kind === 'slide'}
                   timeLimit={selected.time_limit}
                   points={selected.points}
                   onTimeLimit={(s) => updateQuestion(selected.id, (q) => ({ ...q, time_limit: s }))}
@@ -528,7 +578,7 @@ function IssuesBanner({
 }) {
   const bad = questions.flatMap((q, i) => {
     const v = issues.get(q.id)
-    return v ? [{ id: q.id, n: i + 1, summary: v.summary.join(', ') }] : []
+    return v ? [{ id: q.id, n: i + 1, what: q.kind === 'slide' ? 'Snímka' : 'Otázka', summary: v.summary.join(', ') }] : []
   })
   const rest = bad.length - MAX_LISTED_ISSUES
   return (
@@ -546,7 +596,7 @@ function IssuesBanner({
             {bad.slice(0, MAX_LISTED_ISSUES).map((b) => (
               <li key={b.id}>
                 <IssueChip onClick={() => onSelect(b.id)}>
-                  Otázka {b.n}: <span className="font-semibold">{b.summary}</span>
+                  {b.what} {b.n}: <span className="font-semibold">{b.summary}</span>
                 </IssueChip>
               </li>
             ))}

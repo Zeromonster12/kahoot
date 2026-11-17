@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
 import { CategoryBadge } from '../../../components/CategoryBadge'
+import { questionProgress } from '../../../lib/progress'
 import { PREVIEW_SECONDS } from '../../../lib/theme'
 import { sound } from '../../../lib/sound'
 import type { Game } from '../../../lib/types'
@@ -35,7 +36,7 @@ export function PreviewScreen({ game, endsAt }: { game: Game; endsAt: number }) 
         animate={{ y: 0, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 300, damping: 20 }}
       >
-        Otázka {game.question_index + 1} / {game.question_count}
+        Otázka {questionProgress(game).number} / {questionProgress(game).total}
       </motion.p>
 
       {(q.category.trim() || q.points !== 1000) && (

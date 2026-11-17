@@ -1,9 +1,23 @@
 import { memo, useEffect, useRef, useState, type DragEvent, type ReactNode } from 'react'
 import { motion } from 'motion/react'
-import { ChevronDown, ChevronUp, CircleAlert, Copy, FileDown, FileUp, Plus, Trash2 } from 'lucide-react'
+import {
+  ArrowDownAZ,
+  ArrowDownUp,
+  ChevronDown,
+  ChevronUp,
+  CircleAlert,
+  Copy,
+  FileDown,
+  FileUp,
+  Layers,
+  Plus,
+  Presentation,
+  Trash2,
+} from 'lucide-react'
 import { Button } from '../../../components/Button'
 import { ANSWER_STYLES, categoryColor } from '../../../lib/theme'
-import type { DraftQuestion } from '../model'
+import { Menu } from '../components/Menu'
+import type { DraftQuestion, GroupOptions } from '../model'
 
 interface Props {
   questions: DraftQuestion[]
@@ -17,6 +31,8 @@ interface Props {
   onDuplicate: (id: string) => void
   onDelete: (id: string) => void
   onAdd: () => void
+  onAddSlide: () => void
+  onSort: (opts: GroupOptions) => void
   onImport: () => void
   onExport: () => void
 }
@@ -32,10 +48,15 @@ export function QuestionList({
   onDuplicate,
   onDelete,
   onAdd,
+  onAddSlide,
+  onSort,
   onImport,
   onExport,
 }: Props) {
   const dragFrom = useRef<number | null>(null)
+  const questionCount = questions.filter((q) => q.kind === 'question').length
+  const slideCount = questions.length - questionCount
+  const hasCategories = questions.some((q) => q.category.trim())
   const [dropAt, setDropAt] = useState<number | null>(null)
   const listRef = useRef<HTMLOListElement>(null)
 
@@ -81,16 +102,50 @@ export function QuestionList({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center justify-between px-4 pt-4 pb-2">
+      <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-1.5">
         <h2 className="text-sm font-extrabold tracking-wide text-gray-500 uppercase">
-          Otázky <span className="text-gray-400">({questions.length})</span>
+          Otázky <span className="text-gray-400">({questionCount})</span>
+          {slideCount > 0 && (
+            <span className="ml-1 font-bold tracking-normal text-gray-400 normal-case">
+              + {slideCount} {slideCount === 1 ? 'snímka' : slideCount <= 4 ? 'snímky' : 'snímok'}
+            </span>
+          )}
         </h2>
-        {invalidIds.size > 0 && (
-          <span className="inline-flex items-center gap-1 text-xs font-bold text-ans-red" title="Neúplné otázky">
-            <CircleAlert className="size-3.5" />
-            {invalidIds.size} {invalidIds.size === 1 ? 'neúplná' : invalidIds.size <= 4 ? 'neúplné' : 'neúplných'}
-          </span>
-        )}
+        <span className="flex items-center gap-1">
+          {invalidIds.size > 0 && (
+            <span className="inline-flex items-center gap-1 text-xs font-bold text-ans-red" title="Neúplné položky">
+              <CircleAlert className="size-3.5" />
+              {invalidIds.size} {invalidIds.size === 1 ? 'neúplná' : invalidIds.size <= 4 ? 'neúplné' : 'neúplných'}
+            </span>
+          )}
+          {questions.length > 1 && (
+            <Menu
+              label="Zoradiť podľa kategórií"
+              icon={<ArrowDownUp className="size-4" />}
+              triggerClassName="size-8!"
+              items={[
+                {
+                  label: 'Zoskupiť podľa kategórií',
+                  icon: <Layers />,
+                  disabled: !hasCategories,
+                  onSelect: () => onSort({}),
+                },
+                {
+                  label: 'Zoskupiť a pridať úvodné snímky kategórií',
+                  icon: <Presentation />,
+                  disabled: !hasCategories,
+                  onSelect: () => onSort({ introSlides: true }),
+                },
+                {
+                  label: 'Kategórie podľa abecedy',
+                  icon: <ArrowDownAZ />,
+                  disabled: !hasCategories,
+                  onSelect: () => onSort({ alphabetical: true }),
+                },
+              ]}
+            />
+          )}
+        </span>
       </div>
 
       <ol
@@ -131,6 +186,16 @@ export function QuestionList({
       <div className="flex flex-col gap-2 border-t border-gray-200 bg-white p-3">
         <Button variant="brand" className="w-full" onClick={onAdd} icon={<Plus className="size-5" />}>
           Pridať otázku
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={onAddSlide}
+          icon={<Presentation className="size-4" />}
+          title="Informačná obrazovka bez odpovedí (napr. úvod kategórie) – vloží sa za vybranú položku"
+        >
+          Pridať snímku
         </Button>
         <Button
           variant="outline"
@@ -189,6 +254,8 @@ const QuestionItem = memo(function QuestionItem({
 }: ItemProps) {
   const color = categoryColor(q.category)
   const n = index + 1
+  const slide = q.kind === 'slide'
+  const what = slide ? 'Snímka' : 'Otázka'
   return (
     <motion.div layout="position" transition={{ duration: 0.2 }}>
       <div className="flex gap-1.5">
@@ -210,8 +277,8 @@ const QuestionItem = memo(function QuestionItem({
             }
           }}
           aria-current={selected ? 'true' : undefined}
-          aria-label={`Otázka ${n}: ${q.text.trim() || 'bez textu'}${invalid ? ' (neúplná)' : ''}`}
-          className={`relative min-w-0 flex-1 cursor-pointer overflow-hidden rounded-lg border-2 bg-white py-2 pr-2 pl-3.5 text-left transition outline-none select-none focus-visible:ring-2 focus-visible:ring-brand-300 active:cursor-grabbing ${
+          aria-label={`${what} ${n}: ${q.text.trim() || 'bez textu'}${invalid ? ' (neúplná)' : ''}`}
+          className={`relative min-w-0 flex-1 cursor-pointer overflow-hidden rounded-lg border-2 py-2 pr-2 pl-3.5 text-left transition outline-none select-none focus-visible:ring-2 focus-visible:ring-brand-300 active:cursor-grabbing ${slide ? 'border-dashed bg-brand-50/60' : 'bg-white'} ${
             selected
               ? 'border-brand-500 shadow-md shadow-brand-900/10'
               : invalid && strong
@@ -223,18 +290,24 @@ const QuestionItem = memo(function QuestionItem({
           <span className="flex gap-2">
             <span className="min-w-0 flex-1">
               <span className={`line-clamp-2 text-sm leading-snug font-bold ${q.text.trim() ? '' : 'text-gray-400 italic'}`}>
-                {q.text.trim() || 'Otázka bez textu'}
+                {q.text.trim() || (slide ? 'Snímka bez nadpisu' : 'Otázka bez textu')}
               </span>
               <span className="mt-1 flex items-center gap-1.5 text-xs font-semibold text-gray-500">
+                {slide && (
+                  <span className="inline-flex shrink-0 items-center gap-1 font-extrabold text-brand-700">
+                    <Presentation className="size-3.5" aria-hidden />
+                    Snímka ·
+                  </span>
+                )}
                 <span className="truncate">{q.category.trim() || 'Bez kategórie'}</span>
-                <span className="shrink-0">· {q.time_limit} s</span>
+                {!slide && <span className="shrink-0">· {q.time_limit} s</span>}
               </span>
             </span>
             {q.image_url ? (
               <img src={q.image_url} alt="" loading="lazy" className="size-11 shrink-0 rounded-md bg-gray-100 object-cover" />
             ) : null}
           </span>
-          <span className="mt-1.5 flex gap-1" aria-hidden>
+          <span className={`mt-1.5 flex gap-1 ${slide ? 'hidden' : ''}`} aria-hidden>
             {q.answers.map((a, i) => (
               <span
                 key={i}
@@ -254,10 +327,10 @@ const QuestionItem = memo(function QuestionItem({
             <ChevronDown />
           </IconAction>
           <span className="mx-1 h-4 w-px bg-gray-200" aria-hidden />
-          <IconAction label="Duplikovať otázku" onClick={() => onDuplicate(q.id)}>
+          <IconAction label={slide ? 'Duplikovať snímku' : 'Duplikovať otázku'} onClick={() => onDuplicate(q.id)}>
             <Copy />
           </IconAction>
-          <IconAction label="Zmazať otázku" danger onClick={() => onDelete(q.id)}>
+          <IconAction label={slide ? 'Zmazať snímku' : 'Zmazať otázku'} danger onClick={() => onDelete(q.id)}>
             <Trash2 />
           </IconAction>
         </div>

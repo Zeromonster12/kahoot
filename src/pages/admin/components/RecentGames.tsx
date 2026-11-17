@@ -9,6 +9,7 @@ import { ErrorState, InlineError, Skeleton } from './States'
 
 export const STATUS_LABELS: Record<GameStatus, string> = {
   lobby: 'Čaká na tímy',
+  slide: 'Prebieha',
   preview: 'Prebieha',
   question: 'Prebieha',
   reveal: 'Prebieha',
@@ -112,8 +113,10 @@ export function RecentGames({ games, error, loading, deletingId, onRetry, onDele
                       {pluralTeams(g.teamCount)}
                     </span>
                     {isRunning(g.status) && g.question_index >= 0 && (
+                      // index ide po položkách (otázky aj snímky)
                       <span>
-                        otázka {g.question_index + 1} z {g.question_count}
+                        {g.item_count && g.item_count !== g.question_count ? 'krok' : 'otázka'} {g.question_index + 1} z{' '}
+                        {g.item_count ?? g.question_count}
                       </span>
                     )}
                   </p>

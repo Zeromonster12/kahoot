@@ -9,6 +9,8 @@ const POINTS_HINT: Record<PointsMode, string> = {
 }
 
 interface Props {
+  /** snímka nemá čas ani body – zostanú len akcie */
+  slide?: boolean
   timeLimit: number
   points: PointsMode
   onTimeLimit: (s: number) => void
@@ -18,8 +20,9 @@ interface Props {
 }
 
 /** Pravý panel: časový limit, body, akcie otázky. */
-export function QuestionSettings({ timeLimit, points, onTimeLimit, onPoints, onDuplicate, onDelete }: Props) {
+export function QuestionSettings({ slide = false, timeLimit, points, onTimeLimit, onPoints, onDuplicate, onDelete }: Props) {
   const times = TIME_LIMITS.includes(timeLimit) ? TIME_LIMITS : [...TIME_LIMITS, timeLimit].sort((a, b) => a - b)
+  if (slide) return <ItemActions slide onDuplicate={onDuplicate} onDelete={onDelete} />
   return (
     <div className="space-y-6">
       <fieldset>
@@ -88,24 +91,32 @@ export function QuestionSettings({ timeLimit, points, onTimeLimit, onPoints, onD
         </p>
       </fieldset>
 
-      <div className="space-y-1.5 border-t border-gray-200 pt-5">
-        <button
-          type="button"
-          onClick={onDuplicate}
-          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-100"
-        >
-          <Copy className="size-4" />
-          Duplikovať otázku
-        </button>
-        <button
-          type="button"
-          onClick={onDelete}
-          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-ans-red transition hover:bg-red-50"
-        >
-          <Trash2 className="size-4" />
-          Zmazať otázku
-        </button>
+      <div className="border-t border-gray-200 pt-5">
+        <ItemActions onDuplicate={onDuplicate} onDelete={onDelete} />
       </div>
+    </div>
+  )
+}
+
+function ItemActions({ slide = false, onDuplicate, onDelete }: { slide?: boolean; onDuplicate: () => void; onDelete: () => void }) {
+  return (
+    <div className="space-y-1.5">
+      <button
+        type="button"
+        onClick={onDuplicate}
+        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-gray-700 transition hover:bg-gray-100"
+      >
+        <Copy className="size-4" />
+        {slide ? 'Duplikovať snímku' : 'Duplikovať otázku'}
+      </button>
+      <button
+        type="button"
+        onClick={onDelete}
+        className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm font-bold text-ans-red transition hover:bg-red-50"
+      >
+        <Trash2 className="size-4" />
+        {slide ? 'Zmazať snímku' : 'Zmazať otázku'}
+      </button>
     </div>
   )
 }

@@ -379,6 +379,84 @@ await test('leave_game: tím odíde, s rovnakým názvom sa môže vrátiť; po 
 })
 
 // ---------------------------------------------------------------------------
+// Snímky (0007)
+
+let slideQuiz, game4, pin4, t4
+await test('snímky: databáza vyžaduje odpovede len pri otázke', async () => {
+  ;[{ id: slideQuiz }] = await as(ADMIN, `insert into quizzes (title) values ('So snímkami') returning id`)
+  await rejects(
+    as(ADMIN, `insert into questions (quiz_id, kind, text, answers, correct) values ($1, 'question', 'x', '{}', 0)`, [slideQuiz]),
+    /check constraint/,
+  )
+  await rejects(
+    as(ADMIN, `insert into questions (quiz_id, kind, text, answers, correct) values ($1, 'slide', 'x', array['a','b'], 0)`, [slideQuiz]),
+    /check constraint/,
+  )
+  await rejects(
+    as(ADMIN, `insert into questions (quiz_id, kind, text, answers, correct) values ($1, 'video', 'x', '{}', 0)`, [slideQuiz]),
+    /check constraint/,
+  )
+  await as(ADMIN, `
+    insert into questions (quiz_id, position, kind, category, text, answers, correct, points, explanation) values
+      ($1, 0, 'slide',    'Geografia', 'Geografia', '{}', 0, 0, '2 otázky o Slovensku'),
+      ($1, 1, 'question', 'Geografia', 'Hlavné mesto SR?', array['Košice','Bratislava'], 1, 1000, ''),
+      ($1, 2, 'slide',    'Šport', 'Šport', '{}', 0, 0, ''),
+      ($1, 3, 'question', 'Šport', 'Koľko hráčov má futbalový tím?', array['10','11'], 1, 1000, '')
+  `, [slideQuiz])
+})
+
+await test('snímky: kvíz len so snímkami sa nedá spustiť, počty otázok a položiek', async () => {
+  const [{ id: onlySlides }] = await as(ADMIN, `insert into quizzes (title) values ('Len snímky') returning id`)
+  await as(ADMIN, `insert into questions (quiz_id, kind, text, answers, correct, points) values ($1, 'slide', 'Ahoj', '{}', 0, 0)`, [onlySlides])
+  await rejects(as(ADMIN, `select create_game($1)`, [onlySlides]), /quiz_empty/)
+
+  ;[{ create_game: game4 }] = await as(ADMIN, `select create_game($1)`, [slideQuiz])
+  ;[{ pin: pin4 }] = await as(ADMIN, `select pin from game_pins where game_id = $1`, [game4])
+  const [g] = await as(ANON, `select question_count, item_count from games where id = $1`, [game4])
+  assert.equal(g.question_count, 2, 'question_count ráta len otázky')
+  assert.equal(g.item_count, 4)
+  ;[{ join_game: t4 }] = await as(ANON, `select join_game($1, $2)`, [pin4, 'Sovy'])
+})
+
+await test('snímky: hra prejde snímkou, otázky sa číslujú bez snímok', async () => {
+  await as(ADMIN, `select host_show_question($1, 0)`, [game4])
+  let [g] = await as(ANON, `select status, question, preview_ends_at from games where id = $1`, [game4])
+  assert.equal(g.status, 'slide')
+  assert.equal(g.question.kind, 'slide')
+  assert.equal(g.question.text, 'Geografia')
+  assert.equal(g.question.body, '2 otázky o Slovensku')
+  assert.equal(g.question.number, undefined)
+  assert.equal(g.question.total, 2)
+  assert.equal(g.preview_ends_at, null, 'snímka nemá časovač')
+  await rejects(as(ANON, `select submit_answer($1, $2, 0)`, [t4.team_id, t4.token]), /not_accepting/)
+  await as(ANON, `select advance_game($1)`, [game4])
+  ;[g] = await as(ANON, `select status from games where id = $1`, [game4])
+  assert.equal(g.status, 'slide', 'snímku posúva len učiteľ')
+  await as(ANON, `select join_game($1, $2)`, [pin4, 'Neskorí']) // počas snímky sa dá pripojiť
+
+  await as(ADMIN, `select host_show_question($1, 1)`, [game4]) // zo snímky rovno na otázku
+  ;[g] = await as(ANON, `select status, question from games where id = $1`, [game4])
+  assert.equal(g.status, 'preview')
+  assert.equal(g.question.kind, 'question')
+  assert.equal(g.question.number, 1)
+  assert.equal(g.question.total, 2)
+  await as(ADMIN, `select host_open_answers($1)`, [game4])
+  await as(ANON, `select submit_answer($1, $2, 1)`, [t4.team_id, t4.token])
+  await as(ADMIN, `select host_reveal($1)`, [game4])
+  await as(ADMIN, `select host_scoreboard($1)`, [game4])
+
+  await as(ADMIN, `select host_show_question($1, 2)`, [game4])
+  ;[g] = await as(ANON, `select status, question from games where id = $1`, [game4])
+  assert.equal(g.status, 'slide')
+  await as(ADMIN, `select host_show_question($1, 3)`, [game4])
+  ;[g] = await as(ANON, `select status, question from games where id = $1`, [game4])
+  assert.equal(g.question.number, 2, 'druhá otázka je č. 2, hoci je to 4. položka')
+  await as(ADMIN, `select host_finish($1)`, [game4])
+  const [{ team_state: s }] = await as(ANON, `select team_state($1, $2)`, [t4.team_id, t4.token])
+  assert.ok(s.score > 0)
+})
+
+// ---------------------------------------------------------------------------
 // Sprísnenie (0005)
 
 await test('práva: anonym nemá zápis do games, nikto okrem servera nemení admin_emails', async () => {

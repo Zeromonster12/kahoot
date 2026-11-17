@@ -34,6 +34,7 @@ export const ACCEPTED_FILES = '.xlsx,.xls,.ods,.csv,application/vnd.openxmlforma
 const LETTERS = ['A', 'B', 'C', 'D']
 
 const HEADERS = [
+  'Typ',
   'Kategória',
   'Otázka',
   'Odpoveď A',
@@ -48,9 +49,14 @@ const HEADERS = [
   'Obrázok k vysvetleniu (URL)',
 ]
 
-const COL_WIDTHS = [18, 60, 26, 26, 26, 26, 10, 9, 8, 40, 60, 40]
+const COL_WIDTHS = [10, 18, 60, 26, 26, 26, 26, 10, 9, 8, 40, 60, 40]
+
+/** hodnoty stĺpca „Typ“ (normalizované) */
+const SLIDE_KINDS = ['snimka', 'slide', 'info', 'informacia', 'obrazovka', 'uvod', 'uvodna snimka']
+const QUESTION_KINDS = ['', 'otazka', 'question', 'kviz']
 
 type Field =
+  | 'kind'
   | 'category'
   | 'text'
   | 'a'
@@ -82,6 +88,7 @@ function answerAliases(letter: string, n: number): string[] {
 
 // kľúče sú už normalizované (bez diakritiky, malými písmenami)
 const ALIASES: Record<Field, string[]> = {
+  kind: ['typ', 'druh', 'type', 'typ polozky'],
   category: ['kategoria', 'kategorie', 'category', 'tema', 'predmet', 'oblast', 'okruh'],
   text: ['otazka', 'otazky', 'question', 'text', 'text otazky', 'znenie', 'znenie otazky', 'zadanie'],
   a: answerAliases('a', 1),
@@ -244,9 +251,48 @@ export function parseRows(rows: unknown[][], firstRowNumber = 1): ParseResult {
     if (row.every((c) => !c)) continue
     const fail = (message: string) => errors.push({ row: rowNumber, message })
 
+    const kindRaw = get(row, cols.kind)
+    const kindKey = normalizeKey(kindRaw)
+    const slide = SLIDE_KINDS.includes(kindKey)
+    if (!slide && !QUESTION_KINDS.includes(kindKey)) {
+      fail(`Neznámy typ „${kindRaw}“ – použi „otázka“ alebo „snímka“.`)
+      continue
+    }
+
     const text = get(row, cols.text).replace(/\s*\n\s*/g, ' ')
     if (!text) {
-      fail('Chýba text otázky.')
+      fail(slide ? 'Chýba nadpis snímky (stĺpec „Otázka“).' : 'Chýba text otázky.')
+      continue
+    }
+
+    if (slide) {
+      // snímka: nadpis v stĺpci „Otázka“, text vo „Vysvetlenie“, obrázok; odpovede sa ignorujú
+      if (text.length > MAX_QUESTION) {
+        fail(`Nadpis snímky je dlhší ako ${MAX_QUESTION} znakov (${text.length}).`)
+        continue
+      }
+      const body = get(row, cols.explanation)
+      if (body.length > MAX_EXPLANATION) {
+        fail(`Text snímky (stĺpec „Vysvetlenie“) je dlhší ako ${MAX_EXPLANATION} znakov (${body.length}).`)
+        continue
+      }
+      const slideImage = get(row, cols.image)
+      if (slideImage && !isHttpsUrl(slideImage)) {
+        fail('Obrázok musí byť verejná webová adresa začínajúca na https://.')
+        continue
+      }
+      questions.push({
+        kind: 'slide',
+        category: get(row, cols.category).replace(/\s+/g, ' ').slice(0, MAX_CATEGORY),
+        text,
+        image_url: slideImage || null,
+        answers: [],
+        correct: 0,
+        time_limit: DEFAULT_TIME,
+        points: 0,
+        explanation: body,
+        explanation_image_url: null,
+      })
       continue
     }
     if (text.length > MAX_QUESTION) {
@@ -315,6 +361,7 @@ export function parseRows(rows: unknown[][], firstRowNumber = 1): ParseResult {
 
     // odpovede bez medzier (napr. prázdne C a vyplnené D → D sa posunie na miesto C)
     questions.push({
+      kind: 'question',
       category: get(row, cols.category).replace(/\s+/g, ' ').slice(0, MAX_CATEGORY),
       text,
       image_url: image || null,
@@ -442,7 +489,12 @@ function pointsCell(p: PointsMode): number {
 }
 
 function questionRow(q: QuestionData): (string | number)[] {
+  if (q.kind === 'slide') {
+    // nadpis v „Otázka“, text vo „Vysvetlenie“ – odpovede, čas a body prázdne
+    return ['snímka', q.category, q.text, '', '', '', '', '', '', '', q.image_url ?? '', q.explanation ?? '', '']
+  }
   return [
+    'otázka',
     q.category,
     q.text,
     q.answers[0] ?? '',
@@ -475,6 +527,19 @@ export async function exportQuizToXlsx(title: string, questions: QuestionData[])
 
 const SAMPLE: QuestionData[] = [
   {
+    kind: 'slide',
+    category: 'Geografia',
+    text: 'Geografia',
+    answers: [],
+    correct: 0,
+    time_limit: DEFAULT_TIME,
+    points: 0,
+    image_url: null,
+    explanation: 'Úvodná snímka kategórie – ukáže sa na projektore aj na mobiloch, kým učiteľ nepokračuje.',
+    explanation_image_url: null,
+  },
+  {
+    kind: 'question',
     category: 'Geografia',
     text: 'Ktorý je najvyšší vrch Slovenska?',
     answers: ['Kriváň', 'Gerlachovský štít', 'Lomnický štít', 'Rysy'],
@@ -486,6 +551,7 @@ const SAMPLE: QuestionData[] = [
     explanation_image_url: null,
   },
   {
+    kind: 'question',
     category: 'Príroda',
     text: 'Koľko nôh má pavúk?',
     answers: ['6', '8', '10'],
@@ -497,6 +563,7 @@ const SAMPLE: QuestionData[] = [
     explanation_image_url: null,
   },
   {
+    kind: 'question',
     category: 'Šport',
     text: 'Koľko hráčov jedného tímu je naraz na ihrisku vo futbale?',
     answers: ['9', '10', '11', '12'],
@@ -508,6 +575,7 @@ const SAMPLE: QuestionData[] = [
     explanation_image_url: null,
   },
   {
+    kind: 'question',
     category: 'Príroda',
     text: 'Pravda alebo nepravda: Slnko je hviezda.',
     answers: ['Pravda', 'Nepravda'],
@@ -522,6 +590,10 @@ const SAMPLE: QuestionData[] = [
 
 const GUIDE: string[][] = [
   ['Stĺpec', 'Čo doňho napísať'],
+  [
+    'Typ',
+    'Nepovinné. „otázka“ (alebo prázdne) = bežná otázka; „snímka“ = informačná obrazovka bez odpovedí (napr. úvod kategórie). Pri snímke napíš nadpis do stĺpca „Otázka“, text do „Vysvetlenie“ a voliteľne obrázok; ostatné stĺpce nechaj prázdne.',
+  ],
   ['Kategória', 'Nepovinné. Téma otázky, napr. Geografia, Príroda, Šport. Zobrazí sa pri otázke ako farebný štítok.'],
   ['Otázka', 'Povinné. Text otázky (najviac 400 znakov).'],
   ['Odpoveď A, Odpoveď B', 'Povinné. Prvé dve možnosti (najviac 120 znakov).'],

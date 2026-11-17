@@ -59,8 +59,8 @@ try {
   if (qe) throw qe
   quizId = quiz.id
   const { error: qse } = await host.from('questions').insert([
-    { quiz_id: quizId, position: 0, category: 'Test', text: 'Otázka 1', answers: ['A', 'B', 'C', 'D'], correct: 2, time_limit: 5, explanation: 'Lebo C.', explanation_image_url: 'https://example.com/c.png' },
-    { quiz_id: quizId, position: 1, category: 'Test', text: 'Otázka 2', answers: ['Áno', 'Nie'], correct: 0, time_limit: 5, points: 2000 },
+    { quiz_id: quizId, position: 0, category: 'Test', text: 'Otázka 1', answers: ['A', 'B', 'C', 'D'], correct: 2, time_limit: 5, points: 1000, explanation: 'Lebo C.', explanation_image_url: 'https://example.com/c.png' },
+    { quiz_id: quizId, position: 1, category: 'Test', text: 'Otázka 2', answers: ['Áno', 'Nie'], correct: 0, time_limit: 5, points: 2000, explanation: '', explanation_image_url: null },
   ])
   if (qse) throw qse
 
@@ -142,17 +142,37 @@ try {
   assert.equal(s0.rank, 1)
   console.log(`  body: Sovy ${s0.score}, Líšky ${s1.score}, Ježkovia ${s2.score}`)
 
-  step('otázka 2 (2× body) a koniec času bez odpovede')
+  step('neskorý tím sa pripojí počas hry (hra sa sama nezamyká) a odíde')
+  const late = client()
+  const { data: g1 } = await late.from('games').select('locked').eq('id', gameId).single()
+  assert.equal(g1.locked, false, 'hra sa po prvej otázke sama zamkla')
+  const lateTeam = await rpc(late, 'join_game', { p_pin: game.pin, p_name: 'Neskorí' })
+  await rpc(late, 'leave_game', { p_team_id: lateTeam.team_id, p_token: lateTeam.token })
+  await assert.rejects(rpc(late, 'team_state', { p_team_id: lateTeam.team_id, p_token: lateTeam.token }), /team_not_found/)
+  const back = await rpc(late, 'join_game', { p_pin: game.pin, p_name: 'Neskorí' })
+  await rpc(late, 'leave_game', { p_team_id: back.team_id, p_token: back.token })
+
+  step('otázka 2 (2× body) bez projektora: odpovede otvorí aj vyhodnotí mobil hráča')
   await rpc(host, 'host_scoreboard', { p_game_id: gameId })
   await rpc(host, 'host_show_question', { p_game_id: gameId, p_index: 1 })
-  await rpc(host, 'host_open_answers', { p_game_id: gameId })
+  await waitForStatus(players[0].events, 'preview', 1)
+  await rpc(players[0].c, 'advance_game', { p_game_id: gameId }) // pred koncom úvodu nič
+  const { data: still } = await players[0].c.from('games').select('status').eq('id', gameId).single()
+  assert.equal(still.status, 'preview', 'advance_game urýchlil úvod otázky')
+  await sleep(5300)
+  await rpc(players[0].c, 'advance_game', { p_game_id: gameId })
+  await Promise.all(players.map((p) => waitForStatus(p.events, 'question', 1)))
   await rpc(players[2].c, 'submit_answer', { p_team_id: players[2].team.team_id, p_token: players[2].team.token, p_answer: 0 })
   await sleep(6500)
   await assert.rejects(
     rpc(players[1].c, 'submit_answer', { p_team_id: players[1].team.team_id, p_token: players[1].team.token, p_answer: 0 }),
     /time_up/,
   )
-  await rpc(host, 'host_reveal', { p_game_id: gameId })
+  await rpc(players[1].c, 'advance_game', { p_game_id: gameId })
+  for (const p of players) {
+    const g = await waitForStatus(p.events, 'reveal', 1)
+    assert.equal(g.question.correct, 0)
+  }
 
   step('koniec hry a rebríček')
   await rpc(host, 'host_finish', { p_game_id: gameId })

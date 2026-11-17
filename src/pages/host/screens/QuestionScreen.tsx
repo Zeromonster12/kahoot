@@ -5,6 +5,7 @@ import { AnswerShape } from '../../../components/AnswerShape'
 import { Button } from '../../../components/Button'
 import { CountdownRing } from '../../../components/CountdownRing'
 import { useCountdown } from '../../../lib/clock'
+import { isLastItem } from '../../../lib/progress'
 import { ANSWER_STYLES } from '../../../lib/theme'
 import { sound } from '../../../lib/sound'
 import type { AnswerRow, Game } from '../../../lib/types'
@@ -34,7 +35,7 @@ export function QuestionScreen({ game, teamCount, answeredCount, answers, rem, s
   const totalMs = (q?.time_limit ?? 0) * 1000
   const seconds = remaining === null ? null : Math.ceil(remaining / 1000)
   const timeUp = !revealed && remaining === 0
-  const isLast = game.question_index >= game.question_count - 1
+  const isLast = isLastItem(game)
   const [imageFailed, setImageFailed] = useState(false)
 
   // tikanie posledných 5 s a zvuk konca času – len ak tu odpočet naozaj bežal

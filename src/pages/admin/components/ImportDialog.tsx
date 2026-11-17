@@ -242,6 +242,11 @@ export function ImportDialog({
                         {q.image_url && <p className="mt-0.5 text-xs text-gray-400">+ obrázok</p>}
                       </td>
                       <td className="px-3 py-2.5">
+                        {q.kind === 'slide' && (
+                          <p className="text-xs font-bold tracking-wide text-brand-700 uppercase">
+                            Snímka{q.explanation ? ` · ${q.explanation.slice(0, 60)}${q.explanation.length > 60 ? '…' : ''}` : ''}
+                          </p>
+                        )}
                         <ul className="space-y-1">
                           {q.answers.map((a, ai) => {
                             const ok = ai === q.correct
@@ -265,9 +270,11 @@ export function ImportDialog({
                           })}
                         </ul>
                       </td>
-                      <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap text-gray-600">{q.time_limit} s</td>
                       <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap text-gray-600">
-                        {q.points === 2000 ? '2×' : q.points === 0 ? 'bez' : '1×'}
+                        {q.kind === 'slide' ? '–' : `${q.time_limit} s`}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-semibold whitespace-nowrap text-gray-600">
+                        {q.kind === 'slide' ? '–' : q.points === 2000 ? '2×' : q.points === 0 ? 'bez' : '1×'}
                       </td>
                     </tr>
                   ))}

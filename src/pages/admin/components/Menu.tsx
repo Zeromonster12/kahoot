@@ -16,11 +16,14 @@ export function Menu({
   label = 'Ďalšie možnosti',
   className = '',
   triggerClassName = '',
+  icon,
 }: {
   items: MenuItem[]
   label?: string
   className?: string
   triggerClassName?: string
+  /** ikona tlačidla (predvolene „⋮“) */
+  icon?: ReactNode
 }) {
   const [open, setOpen] = useState(false)
   const [up, setUp] = useState(false)
@@ -91,7 +94,7 @@ export function Menu({
         title={label}
         className={`inline-flex size-9 items-center justify-center rounded-full text-gray-500 transition hover:bg-gray-100 hover:text-ink aria-expanded:bg-gray-100 aria-expanded:text-ink ${triggerClassName}`}
       >
-        <EllipsisVertical className="size-5" />
+        {icon ?? <EllipsisVertical className="size-5" />}
       </button>
       <AnimatePresence>
         {open && (
